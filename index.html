@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>环形进度系统</title>
+    <style>
+        /* 页面基本样式 */
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f0f0f0;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .ring-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 主圆环样式 */
+        .main-ring {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border: 3px solid #cc0000;
+            border-radius: 50%;
+        }
+
+        /* 进度环样式 */
+        .progress-ring {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border: 3px solid transparent;
+            border-radius: 50%;
+            transform: rotate(-90deg);
+        }
+
+        /* 节点基础样式 */
+        .node {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            z-index: 2;
+            text-align: center;
+        }
+
+        /* 菱形节点样式（第1个） */
+        .diamond {
+            width: 40px;
+            height: 40px;
+            background: #fff;
+            transform: translate(-50%, -50%) rotate(45deg);
+            border: 2px solid #000;
+        }
+
+        /* 正方形节点样式（第2-7个） */
+        .square {
+            width: 40px;
+            height: 40px;
+            background: #fff;
+            border: 2px solid #000;
+        }
+
+        /* 中间节点样式 */
+        .center-node {
+            width: 60px;
+            height: 60px;
+            background: #fff;
+            border: 2px solid #000;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        /* 提示框样式 */
+        .tooltip {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            width: 300px;
+            height: 80vh;
+            background: white;
+            border: 2px solid #000;
+            overflow-y: auto;
+            padding: 10px;
+            box-sizing: border-box;
+            display: none;
+            z-index: 3;
+        }
+
+        /* 密码输入区域 */
+        .password-form {
+            position: absolute;
+            bottom: 10px;
+            width: calc(100% - 20px);
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
+
+        input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 8px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+            margin-top: 5px;
+        }
+
+        /* 进度指示器 */
+        .tracker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            background: #3399ff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 0;
+            transition: transform 1s linear;
+        }
+    </style>
+</head>
+<body>
+    <div class="ring-container">
+        <!-- 主圆环 -->
+        <div class="main-ring"></div>
+
+        <!-- 进度环 -->
+        <svg class="progress-ring" viewBox="0 0 600 600" preserveAspectRatio="xMidYMid meet">
+            <path id="progressPath" d="M 300,0 A 300,300 0 1,1 299.99,0" 
+                  fill="none" stroke="#66ccff" stroke-width="3"/>
+        </svg>
+
+        <!-- 进度指示器 -->
+        <div class="tracker" id="tracker"></div>
+
+        <!-- 节点组 -->
+        <div class="nodes">
+            <!-- 第1个节点：菱形（放在最下方） -->
+            <div class="node diamond" data-index="0" style="transform: translate(-50%, -50%) rotate(0deg) translateX(0) translateY(300px);"></div>
+
+            <!-- 第2-7个正方形节点 -->
+            <div class="node square" data-index="1" style="transform: translate(-50%, -50%) rotate(60deg) translateY(-300px);"></div>
+            <div class="node square" data-index="2" style="transform: translate(-50%, -50%) rotate(120deg) translateY(-300px);"></div>
+            <div class="node square" data-index="3" style="transform: translate(-50%, -50%) rotate(180deg) translateY(-300px);"></div>
+            <div class="node square" data-index="4" style="transform: translate(-50%, -50%) rotate(240deg) translateY(-300px);"></div>
+            <div class="node square" data-index="5" style="transform: translate(-50%, -50%) rotate(300deg) translateY(-300px);"></div>
+            
+            <!-- 中间节点 -->
+            <div class="node center-node" id="centerNode" data-index="6" 
+                style="transform: translate(-50%, -50%);">
+                中心
+            </div>
+        </div>
+    </div>
+
+    <!-- 提示框 -->
+    <div class="tooltip" id="tooltip">
+        <p id="tooltipContent">这里是节点说明文字...</p>
+        <div class="password-form">
+            <input type="password" id="passwordInput" placeholder="请输入密码">
+            <button onclick="checkPassword()">解锁</button>
+            <div class="error" id="errorMsg"></div>
+        </div>
+    </div>
+
+    <script>
+        // ========== 可配置参数 ==========
+        // 节点说明文本
+        const nodeDescriptions = [
+            "这是位于最下方的菱形节点",   // 菱形节点
+            "第一个正方形节点说明",       // 节点2
+            "第二个正方形节点说明",       // 节点3
+            "第三个正方形节点说明",       // 节点4
+            "第四个正方形节点说明",       // 节点5
+            "第五个正方形节点说明",       // 节点6
+            "中心节点说明（需全部解锁后开启）"  // 中心节点
+        ];
+
+        // 节点密码设置
+        const nodePasswords = [
+            "",                     // 菱形节点无需密码
+            "node2pass",            // 节点2密码
+            "node3pass",            // 节点3密码
+            "node4pass",            // 节点4密码
+            "node5pass",            // 节点5密码
+            "node6pass",            // 节点6密码
+            "centerpass"            // 中心节点密码
+        ];
+        // ========== 配置结束 ==========
+
+        // 获取DOM元素
+        const nodes = document.querySelectorAll('.node');
+        const tooltip = document.getElementById('tooltip');
+        const tooltipContent = document.getElementById('tooltipContent');
+        const passwordInput = document.getElementById('passwordInput');
+        const errorMsg = document.getElementById('errorMsg');
+        const tracker = document.getElementById('tracker');
+        const centerNode = document.getElementById('centerNode');
+        const progressPath = document.getElementById('progressPath');
+
+        // 状态管理
+        let unlockedNodes = [true];  // 默认已解锁菱形节点
+        for(let i=1; i<6; i++) unlockedNodes.push(false); // 初始状态：仅菱形已解锁
+        let currentNode = null;
+        let isCenterEnabled = false;
+
+        // 初始化节点事件
+        nodes.forEach((node, index) => {
+            // 跳过菱形节点（index=0）和中心节点（index=6）
+            if(index === 0 || index === 6) return;
+            
+            node.addEventListener('click', () => {
+                // 必须按顺序解锁
+                if(index > 0 && !unlockedNodes[index-1]) {
+                    alert("请先解锁前一个节点");
+                    return;
+                }
+
+                if(!unlockedNodes[index]) {
+                    currentNode = index;
+                    showTooltip();
+                }
+            });
+        });
+
+        // 显示提示框
+        function showTooltip() {
+            tooltip.style.display = 'block';
+            tooltip.scrollTop = 0;
+            tooltipContent.textContent = nodeDescriptions[currentNode];
+            passwordInput.value = '';
+            errorMsg.textContent = '';
+        }
+
+        // 检查密码
+        function checkPassword() {
+            const input = passwordInput.value;
+            
+            if(input === nodePasswords[currentNode]) {
+                unlockedNodes[currentNode] = true;
+                tooltip.style.display = 'none';
+                
+                // 更新进度
+                updateProgress(currentNode);
+                
+                // 移动进度指示器
+                moveTracker(currentNode);
+                
+                // 如果是最后一个常规节点（index=5）
+                if(currentNode === 5) {
+                    enableCenterNode();
+                }
+            } else {
+                errorMsg.textContent = '密钥错误！';
+            }
+        }
+
+        // 启用中心节点
+        function enableCenterNode() {
+            isCenterEnabled = true;
+            centerNode.style.opacity = 1;
+            centerNode.style.pointerEvents = 'auto';
+            
+            centerNode.addEventListener('click', () => {
+                if(isCenterEnabled) {
+                    currentNode = 6;
+                    showTooltip();
+                }
+            });
+        }
+
+        // 更新进度条
+        function updateProgress(nodeIndex) {
+            // 计算新的路径
+            const totalLength = Math.PI * 2 * 300; // 圆周长
+            const segmentLength = totalLength / 6 * nodeIndex;
+            
+            // 创建新的路径数据
+            const r = 300;
+            const endAngle = -90 + (360/6)*nodeIndex;
+            
+            // 构建弧形路径
+            const x = 300 + r * Math.cos(endAngle * Math.PI / 180);
+            const y = 300 + r * Math.sin(endAngle * Math.PI / 180);
+            
+            const largeArcFlag = (nodeIndex > 3) ? 1 : 0;
+            progressPath.setAttribute('d', `M 300,0 A 300,300 0 ${largeArcFlag},1 ${x},${y}`);
+        }
+
+        // 移动进度指示器
+        function moveTracker(nodeIndex) {
+            // 对于菱形节点不需要移动
+            if(nodeIndex === 0) return;
+            
+            // 计算角度（注意起始位置在下方）
+            const angle = (-90 + (360/6)*nodeIndex) * Math.PI / 180;
+            const radius = 300;
+            
+            const x = radius * Math.cos(angle);
+            const y = radius * Math.sin(angle);
+            
+            tracker.style.transform = `translate(${x}px, ${y}px)`;
+        }
+
+        // 点击外部区域关闭提示框
+        document.addEventListener('click', (e) => {
+            if(tooltip.style.display === 'block' && 
+               !tooltip.contains(e.target) && 
+               ![...nodes].some(n => n.contains(e.target))) {
+                tooltip.style.display = 'none';
+            }
+        });
+
+        // 监听中心节点解锁后的操作
+        centerNode.addEventListener('click', () => {
+            if(currentNode === 6 && isCenterEnabled) {
+                // 验证中心节点密码
+                if(passwordInput.value === nodePasswords[6]) {
+                    // 所有节点已解锁，跳转页面
+                    window.location.href = 'next.html';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
