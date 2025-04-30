@@ -24,12 +24,13 @@
             height: 600px; /* 固定高度 */
             /* flexbox 已处理居中 */
         }
-        /* 主圆环样式 */
+        /* 主圆环样式 - 根据视频，外圈圆环不是很明显，可以稍微调整样式或透明度 */
         .main-ring {
             position: absolute;
             width: 100%; /* 占满父容器 (ring-container) */
             height: 100%; /* 占满父容器 */
-            border: 2px solid #cc0000; /* 细边框，深红色 */
+            /* 视频中外圈不突出，可以降低透明度或颜色 */
+            border: 2px solid rgba(204, 0, 0, 0.3); /* 细边框，深红色，半透明 */
             border-radius: 50%;
             top: 0;
             left: 0;
@@ -44,16 +45,26 @@
             /* viewBox="0 0 600 600" 在 SVG 标签上 */
             overflow: visible; /* 防止路径的stroke-linecap在边界被裁切 */
         }
-        /* SVG 进度路径样式 */
-        .progress-path {
+        /* SVG 段路径样式 */
+        .segment-path {
             fill: none; /* 不填充区域 */
             stroke: #66ccff; /* 浅蓝色描边 */
             stroke-width: 4px; /* 描边宽度 */
             stroke-linecap: round; /* 使描边端点圆润 */
-            /* stroke-dashoffset 属性的过渡动画 */
-            transition: stroke-dashoffset 2s ease-in-out; /* 动画时间设置为 2000ms (2秒) */
-            /* stroke-dasharray 和 stroke-dashoffset 由 JavaScript 控制实现动画 */
+            /* 初始隐藏，动画会改变 stroke-dashoffset */
+            opacity: 0; /* 初始不可见 */
+            transition: none; /* 移除 stroke-dashoffset 的 CSS transition */
         }
+
+        /* 移动的点样式 */
+        .traveling-dot {
+            fill: #66ccff; /* 点的颜色 */
+            r: 6; /* 点的半径 */
+            display: none; /* 初始隐藏 */
+            z-index: 3; /* 确保点在路径上方 (SVG z-index 不像 HTML 那么直接，但元素顺序和坐标可以模拟) */
+             /* SVG circle 的 cx, cy 会通过 JS 设置 */
+        }
+
 
         /* 节点基础样式 */
         .node {
@@ -99,12 +110,9 @@
         }
 
         /* 解锁节点样式 */
-        .node.unlocked.diamond {
-             background: #66ccff; /* 菱形解锁后也变为浅蓝色 */
-             border-color: #66ccff; /* 边框颜色也变 */
-        }
-         .node.unlocked.square {
-             background: #66ccff; /* 正方形解锁后变为浅蓝色背景 */
+        .node.unlocked.diamond,
+        .node.unlocked.square {
+             background: #66ccff; /* 解锁后变为浅蓝色 */
              border-color: #66ccff; /* 边框颜色也变 */
         }
         .center-node.enabled {
@@ -187,20 +195,39 @@
         <div class="main-ring"></div>
         <!-- 进度环 SVG -->
         <svg class="progress-svg" viewBox="0 0 600 600">
-            <!-- viewBox="0 0 600 600" 定义了 SVG 的内部坐标系范围，圆心在 300, 300 -->
-            <!-- 进度路径，由JavaScript动态生成 d 属性 -->
-            <path id="progressPath" class="progress-path"/>
+            <!-- SVG 内部坐标系范围，圆心在 300, 300 -->
+            <!-- 段路径，由JavaScript动态生成并控制显隐和动画 -->
+            <path id="segmentPath-0-1" class="segment-path"/>
+            <path id="segmentPath-1-2" class="segment-path"/>
+            <path id="segmentPath-2-3" class="segment-path"/>
+            <path id="segmentPath-3-4" class="segment-path"/>
+            <path id="segmentPath-4-5" class="segment-path"/>
+
+            <!-- 移动的点 -->
+            <circle id="travelingDot" class="traveling-dot"/>
         </svg>
         <!-- 节点组 -->
         <div class="nodes">
             <!-- 节点的位置和 transform 将通过 JavaScript 精确计算并设置 style -->
+            <!-- data-index 对应解锁顺序： 0(菱形) -> 1 -> 2 -> 3 -> 4 -> 5 (正方形) -->
+            <!-- HTML 元素的顺序应该与 data-index 一致，方便 JS 获取 -->
+
             <!-- data-index 0: 菱形, 底部 (解锁顺序起点) -->
             <div class="node diamond" data-index="0"></div>
-            <!-- data-index 1-5: 正方形, 顺时针排列 -->
+
+             <!-- data-index 1: 正方形, 左下 (解锁顺序 1) -->
             <div class="node square" data-index="1"></div>
+
+             <!-- data-index 2: 正方形, 左上 (解锁顺序 2) -->
             <div class="node square" data-index="2"></div>
+
+             <!-- data-index 3: 正方形, 顶部 (解锁顺序 3) -->
             <div class="node square" data-index="3"></div>
+
+             <!-- data-index 4: 正方形, 右上 (解锁顺序 4) -->
             <div class="node square" data-index="4"></div>
+
+             <!-- data-index 5: 正方形, 右下 (解锁顺序 5) -->
             <div class="node square" data-index="5"></div>
 
             <!-- 中间节点 (索引6) -->
@@ -220,39 +247,36 @@
     </div>
     <script>
         // ========== 可配置参数 ==========
+
+        // 节点角度定义 (Math/JS 角度: 0=右, 90=下, 180=左, 270=上)
+        // 顺序与解锁顺序一致： 0(底部菱形) -> 1(左下) -> 2(左上) -> 3(顶部) -> 4(右上) -> 5(右下)
+        const nodeAngles = [90, 150, 210, 270, 330, 30];
+
         const nodeDescriptions = [
-            "这是位于最下方的菱形节点，它是整个系统的起点。\n它无需密码即可查看说明。",   // 节点0 (菱形)
-            "这是解锁序列的第一个正方形节点。\n解锁它将开启系统。\n提示：密码是 node1pass", // 节点1
-            "这是解锁序列的第二个正方形节点。\n提示：密码是 node2pass",       // 节点2
-            "这是解锁序列的第三个正方形节点。\n提示：密码是 node3pass",       // 节点3
-            "这是解锁序列的第四个正方形节点。\n提示：密码是 node4pass",       // 节点4
-            "这是解锁序列的第五个正方形节点。\n解锁它将开启中心节点。\n提示：密码是 node5pass", // 节点5
-            "恭喜！你已解锁所有环形节点。这是中心节点。\n在所有环形节点解锁后，输入密码即可访问下一阶段。\n提示：密码是 centerpass"  // 节点6 (中心) - 更新了描述
+            "这是位于最下方的菱形节点，它是整个系统的起点。\n它无需密码即可查看说明。",   // 节点0 (菱形, 底部)
+            "这是解锁序列的第一个正方形节点 (左下)。\n解锁它将开启系统。\n提示：密码是 node1pass", // 节点1 (左下)
+            "这是解锁序列的第二个正方形节点 (左上)。\n提示：密码是 node2pass",       // 节点2 (左上)
+            "这是解锁序列的第三个正方形节点 (顶部)。\n提示：密码是 node3pass",       // 节点3 (顶部)
+            "这是解锁序列的第四个正方形节点 (右上)。\n提示：密码是 node4pass",       // 节点4 (右上)
+            "这是解锁序列的第五个正方形节点 (右下)。\n解锁它将开启中心节点。\n提示：密码是 node5pass", // 节点5 (右下)
+            "恭喜！你已解锁所有环形节点。这是中心节点。\n在所有环形节点解锁后，输入密码即可访问下一阶段。\n提示：密码是 centerpass"  // 节点6 (中心)
         ];
         const nodePasswords = [
             "",                     // 节点0 (菱形) 无需密码解锁
-            "node1pass",            // 节点1 密码
-            "node2pass",            // 节点2 密码
-            "node3pass",            // 节点3 密码
-            "node4pass",            // 节点4 密码
-            "node5pass",            // 节点5 密码
+            "node1pass",            // 节点1 (左下) 密码
+            "node2pass",            // 节点2 (左上) 密码
+            "node3pass",            // 节点3 (顶部) 密码
+            "node4pass",            // 节点4 (右上) 密码
+            "node5pass",            // 5 (右下) 密码
             "centerpass"            // 节点6 (中心) 密码
         ];
 
-        // 节点在圆环上的角度 (从右侧0度开始，逆时针为正)
-        // 根据“菱形在最下方”和“顺时针解锁”的要求重新定义角度：
-        // 节点0 (底部菱形): 90度 (Math/JS角度，对应SVG底部)
-        // 节点1 (右下正方): 90 - 60 = 30度
-        // 节点2 (右上正方): 30 - 60 = -30度 (或 330度)
-        // 节点3 (顶部正方): 330 - 60 = 270度
-        // 节点4 (左上正方): 270 - 60 = 210度
-        // 节点5 (左下正方): 210 - 60 = 150度
-        const nodeAngles = [90, 30, 330, 270, 210, 150]; // 节点0-5 对应角度 (从右侧0度逆时针为正 Math/JS 角度)
+        const animationDuration = 2000; // 动画时长 (毫秒)
 
         // ========== 配置结束 ==========
 
         // 获取DOM元素
-        const nodes = document.querySelectorAll('.node');
+        const nodes = document.querySelectorAll('.node'); // 获取所有节点元素 (顺序应与HTML中的data-index一致)
         const tooltip = document.getElementById('tooltip');
         const tooltipContent = document.getElementById('tooltipContent');
         const passwordForm = document.getElementById('passwordForm');
@@ -260,7 +284,13 @@
         const unlockButton = document.getElementById('unlockButton');
         const errorMsg = document.getElementById('errorMsg');
         const centerNode = document.getElementById('centerNode');
-        const progressPath = document.getElementById('progressPath'); // 获取 path 元素
+        const travelingDot = document.getElementById('travelingDot'); // 获取移动点元素
+
+        // 获取段路径元素
+        const segmentPaths = [];
+        for(let i = 0; i < 5; i++) { // 5段路径：0-1, 1-2, ..., 4-5
+            segmentPaths.push(document.getElementById(`segmentPath-${i}-${i+1}`));
+        }
 
 
         // unlockedNodes[i] 为 true 表示索引 i 的节点 (0-5) 已解锁
@@ -273,7 +303,6 @@
         const radius = 300;
         const circleCenterX = 300; // SVG 内部坐标系中的圆心 X 坐标 (也是ring-container的中心)
         const circleCenterY = 300; // SVG 内部坐标系中的圆心 Y 坐标 (也是ring-container的中心)
-        const circumference = 2 * Math.PI * radius; // 圆周长
 
 
         // --- 初始化设置 ---
@@ -281,27 +310,24 @@
         // 1. 精确定位节点
         positionNodes();
 
-        // 2. 初始化进度条路径 (长度为0，起点在底部)
-        updateProgress(); // 绘制初始路径并设置动画初始状态
+        // 2. 创建段路径几何信息 (d属性)
+        createSegmentPaths();
 
         // 3. 标记菱形节点 (node 0) 为视觉上的解锁/起点状态
-        nodes[0].classList.add('unlocked');
+        // 因为我们在 HTML 中调整了顺序，nodes[0] 应该就是菱形节点
+        if (nodes[0].classList.contains('diamond')) {
+             nodes[0].classList.add('unlocked');
+        }
 
 
-        // --- 函数定义 ---
-
-        /**
-         * 根据 Math/JS 角度计算节点在圆环上的 SVG 坐标 (也就是相对于 ring-container 左上角的坐标)
-         * Math/JS 角度: 0度在右，逆时针为正
-         * SVG 坐标系: 原点在左上角，Y轴向下为正
-         * @param {number} angleDeg Math/JS 角度
-         * @returns {{x: number, y: number}} 返回 SVG 坐标 (相对于 SVG 左上角 0,0)
-         */
         function calculateNodeSvgPosition(angleDeg) {
              // 将角度转换为弧度
+             // 记住 Math.cos/sin 使用弧度，且 0度在正右方，角度逆时针增加
+             // 我们的 nodeAngles 遵循 Math/JS 标准 (0=右, 90=下, 180=左, 270=上)
              const angleRad = angleDeg * Math.PI / 180;
 
              // 计算相对于圆心的坐标，然后加上圆心坐标 (圆心在 SVG 的 300, 300)
+             // 注意：在 SVG 坐标系中，Y轴向下为正
              const nodeX = circleCenterX + radius * Math.cos(angleRad);
              const nodeY = circleCenterY + radius * Math.sin(angleRad);
 
@@ -313,19 +339,20 @@
         function positionNodes() {
             // 节点的 top/left 设置为 SVG 坐标，然后通过 translate(-50%, -50%) 将节点自身中心对齐到该点
             // ring-container 就是 SVG 的绘制区域，其左上角 (0,0) 对应 SVG 的 (0,0)
-            nodes.forEach(node => {
-                const index = parseInt(node.dataset.index);
+            // 遍历获取到的 nodes NodeList
+            nodes.forEach((node) => {
+                const index = parseInt(node.dataset.index); // 使用 data-index 获取节点的逻辑索引 (0-6)
+
                 if (index === 6) { // 中心节点
                     // 中心节点通过 CSS position: 50% 50% 和 transform: translate(-50%, -50%) 居中
-                    // 这里的 50% 是相对于父容器 ring-container 的
                     node.style.left = '50%';
                     node.style.top = '50%';
                     node.style.transform = 'translate(-50%, -50%)';
                     return;
                 }
 
-                // 获取当前节点的 Math/JS 角度
-                const angleDeg = nodeAngles[index];
+                // 对于环形节点 (索引 0-5)，使用 nodeAngles 数组中对应索引的角度
+                const angleDeg = nodeAngles[index]; // 使用 data-index 作为 nodeAngles 的索引
                 // 计算节点在 SVG 坐标系中的位置 (相对于 SVG 左上角)，也就是相对于 ring-container 左上角的位置
                 const svgPos = calculateNodeSvgPosition(angleDeg);
 
@@ -342,6 +369,35 @@
                      node.style.transform = `translate(-50%, -50%)`;
                 }
             });
+        }
+
+        // 创建并设置段路径的几何信息 (d属性)
+        function createSegmentPaths() {
+             // 5 段路径: 0-1, 1-2, 2-3, 3-4, 4-5
+             for (let i = 0; i < 5; i++) {
+                 const startNodeIndex = i;
+                 const endNodeIndex = i + 1;
+
+                 const startPos = calculateNodeSvgPosition(nodeAngles[startNodeIndex]);
+                 const endPos = calculateNodeSvgPosition(nodeAngles[endNodeIndex]);
+
+                 // SVG Arc command: A rx ry x-axis-rotation large-arc-flag sweep-flag x y
+                 // rx, ry = radius (我们是圆，所以rx=ry=radius)
+                 // x-axis-rotation = 0 (圆没有轴旋转)
+                 // sweep-flag = 1 (逆时针绘制，与视频一致)
+                 // large-arc-flag = 0 (每段都是 60度，小于 180度)
+
+                 const pathData = `M ${startPos.x} ${startPos.y} A ${radius} ${radius} 0 0 1 ${endPos.x} ${endPos.y}`;
+
+                 const pathElement = segmentPaths[i]; // 获取对应的 path 元素
+                 pathElement.setAttribute('d', pathData);
+
+                 // 初始隐藏段路径，通过 opacity 和 stroke-dashoffset
+                 pathElement.style.opacity = 0; // 初始不可见
+                 const pathLength = pathElement.getTotalLength();
+                 pathElement.style.strokeDasharray = pathLength;
+                 pathElement.style.strokeDashoffset = pathLength; // 完全偏移隐藏
+             }
         }
 
 
@@ -377,22 +433,33 @@
 
                 if (currentNodeIndex >= 1 && currentNodeIndex <= 5) {
                     // 解锁环形节点 (1-5)
-                    unlockedNodes[currentNodeIndex] = true; // 更新解锁状态数组
-                    nodes[currentNodeIndex].classList.add('unlocked'); // 给节点添加视觉反馈类 (变色)
-                    updateProgress(); // 更新进度条路径并触发动画
+                    // 仅在节点未解锁时执行动画和解锁逻辑
+                    if (!unlockedNodes[currentNodeIndex]) {
+                         unlockedNodes[currentNodeIndex] = true; // 更新解锁状态数组
 
-                    // 检查是否所有环形节点 (1-5) 都已解锁
-                    let allRingNodesUnlocked = true;
-                    for(let i = 1; i <= 5; i++) {
-                        if (!unlockedNodes[i]) {
-                            allRingNodesUnlocked = false;
-                            break;
-                        }
+                         // 找到对应的 DOM 节点 (通过 data-index) 并添加 unlocked 类
+                         const targetNode = document.querySelector(`.node[data-index="${currentNodeIndex}"]`);
+                         if (targetNode) {
+                              targetNode.classList.add('unlocked'); // 给节点添加视觉反馈类 (变色)
+                         }
+
+                         // 触发段路径动画
+                         animateSegmentUnlock(currentNodeIndex);
+
+                         // 检查是否所有环形节点 (1-5) 都已解锁
+                         let allRingNodesUnlocked = true;
+                         for(let i = 1; i <= 5; i++) {
+                             if (!unlockedNodes[i]) {
+                                 allRingNodesUnlocked = false;
+                                 break;
+                             }
+                         }
+                         // 如果所有环形节点 (1-5) 都已解锁，则启用中心节点
+                         if (allRingNodesUnlocked) {
+                             enableCenterNode();
+                         }
                     }
-                    // 如果所有环形节点 (1-5) 都已解锁，则启用中心节点
-                    if (allRingNodesUnlocked) {
-                        enableCenterNode();
-                    }
+
                 } else if (currentNodeIndex === 6 && isCenterEnabled) {
                     // 已启用中心节点且密码正确 - 执行下一步操作 (例如页面跳转)
                     alert("中心节点解锁成功！即将进入下一阶段..."); // 示例弹窗
@@ -406,75 +473,60 @@
             }
         }
 
-        // 更新进度条路径和动画
-        function updateProgress() {
-            // 查找最后一个已解锁的环形节点 (从索引 5 倒序查找)
-            let lastUnlockedIndex = 0; // 默认是节点 0 (底部菱形)
-            for(let i = 5; i >= 1; i--) {
-                if (unlockedNodes[i]) {
-                    lastUnlockedIndex = i;
-                    break; // 找到第一个已解锁的环形节点 (索引 1-5) 就停止查找
+        // 动画函数：移动点沿着路径移动并显示路径
+        function animateSegmentUnlock(unlockedNodeIndex) {
+            // 动画的段路径是从 unlockedNodeIndex - 1 到 unlockedNodeIndex
+            const segmentIndex = unlockedNodeIndex - 1; // 段路径索引 (0-4)
+            const pathElement = segmentPaths[segmentIndex];
+
+            if (!pathElement) return; // 确保段路径存在
+
+            const pathLength = pathElement.getTotalLength();
+
+            // 设置段路径初始状态：可见但未绘制
+            pathElement.style.opacity = 1;
+            pathElement.style.strokeDasharray = pathLength;
+            pathElement.style.strokeDashoffset = pathLength;
+
+            // 设置移动点初始位置并显示
+            const startPoint = pathElement.getPointAtLength(0);
+            travelingDot.setAttribute('cx', startPoint.x);
+            travelingDot.setAttribute('cy', startPoint.y);
+            travelingDot.style.display = 'block'; // 显示点
+
+            let startTime = null;
+
+            function step(timestamp) {
+                if (!startTime) startTime = timestamp;
+                const elapsed = timestamp - startTime; // 已经过去的时间
+                const progress = Math.min(elapsed / animationDuration, 1); // 动画进度 (0 到 1)
+
+                const currentLength = pathLength * progress; // 点在路径上的当前长度
+                const currentPoint = pathElement.getPointAtLength(currentLength); // 点的当前坐标
+
+                // 更新点的位置
+                travelingDot.setAttribute('cx', currentPoint.x);
+                travelingDot.setAttribute('cy', currentPoint.y);
+
+                // 更新路径的 stroke-dashoffset，使其逐渐显示
+                // 绘制的长度 = currentLength
+                // 需要隐藏的长度 = pathLength - currentLength
+                pathElement.style.strokeDashoffset = pathLength - currentLength;
+
+                // 如果动画未结束，继续下一帧
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                } else {
+                    // 动画结束
+                    pathElement.style.strokeDashoffset = 0; // 确保路径完全显示
+                    travelingDot.style.display = 'none'; // 隐藏点
                 }
             }
 
-            // 进度条的起点是 Node 0 (底部菱形) 的位置
-            const startPos = calculateNodeSvgPosition(nodeAngles[0]); // 节点0 (底部 90度 Math/JS) 的 SVG 坐标
-            const startX = startPos.x;
-            const startY = startPos.y;
-
-            // 进度条的终点是最后一个已解锁的环形节点位置
-            const endPos = calculateNodeSvgPosition(nodeAngles[lastUnlockedIndex]); // 最后一个已解锁节点 (0-5) 的 SVG 坐标
-            const endX = endPos.x;
-            const endY = endPos.y;
-
-            // 构建 SVG Path 的 'd' 属性字符串
-            let pathData;
-            if (lastUnlockedIndex === 0) {
-                 // 如果只解锁了节点0，路径是一个点 (或很短的线段)，表示无进度
-                 // 为了防止 getTotalLength() 返回 0 导致动画异常，画一条很短的线
-                 pathData = `M ${startX} ${startY} L ${startX + 0.001} ${startY}`;
-            } else {
-                 // 绘制圆弧的参数
-                 const sweepFlag = 0; // 0 表示顺时针方向绘制
-
-                 // large-arc-flag: 1 表示使用大于180度的大圆弧，0 表示使用小于180度的小圆弧
-                 // 从底部节点 0 (Math/JS 90度) 顺时针到最后一个解锁节点
-                 // 需要计算顺时针角度差是否 >= 180度
-                 // 节点索引 0, 1, 2 对应的顺时针角度差是 0, 60, 120 度 (相对于节点0) -> 小圆弧 (large-arc-flag=0)
-                 // 节点索引 3, 4, 5 对应的顺时针角度差是 180, 240, 300 度 (相对于节点0) -> 大圆弧 (large-arc-flag=1)
-                 const largeArcFlag = lastUnlockedIndex >= 3 ? 1 : 0;
-
-                 // M x y: 移动到 (x, y)
-                 // A rx ry x-axis-rotation large-arc-flag sweep-flag x y: 绘制圆弧到 (x, y)
-                 pathData = `M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${endX} ${endY}`;
-            }
-
-            // 设置 path 元素的 d 属性
-            progressPath.setAttribute('d', pathData);
-
-            // 实现路径绘制动画 (从隐藏到显示)
-            // 获取当前绘制路径的实际长度
-            // 注意：getTotalLength() 必须在设置了 d 属性之后调用
-            const pathLength = progressPath.getTotalLength();
-
-            // 设置 stroke-dasharray 使虚线段的长度等于路径总长
-            progressPath.style.strokeDasharray = pathLength;
-            // 将 stroke-dashoffset 设置为路径总长，使描边完全偏移到路径末端，从而隐藏描边
-            // 这是动画的起点
-            progressPath.style.strokeDashoffset = pathLength;
-
-            // 使用 requestAnimationFrame 确保浏览器在下次重绘前应用 stroke-dashoffset 的初始值 (pathLength)
-            // 然后在下一个渲染周期将 stroke-dashoffset 设置为 0，触发 CSS transition 动画
-            // 双重 requestAnimationFrame 是为了确保浏览器有时间在设置动画终点前渲染初始状态
-             requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    // 如果 pathLength 接近 0，直接设置为 pathLength，避免动画
-                    progressPath.style.strokeDashoffset = (pathLength > 0.1) ? 0 : pathLength; // 动画到 0，显示整条路径
-                });
-             });
-
-             // CSS 中已经设置了 transition: stroke-dashoffset 2s ease-in-out; 来控制动画时间和缓动函数
+            // 启动动画
+            requestAnimationFrame(step);
         }
+
 
         // 启用中心节点 (解锁后状态)
         function enableCenterNode() {
@@ -486,8 +538,10 @@
         // --- 事件监听 ---
 
         // 给所有节点 (0-6) 添加点击监听
+        // 使用事件委托可能会更有效率，但对于少量节点，直接监听也可
         nodes.forEach(node => {
-            const index = parseInt(node.dataset.index); // 获取节点索引
+            // 使用 data-index 属性获取节点的逻辑索引
+            const index = parseInt(node.dataset.index);
 
             node.addEventListener('click', (e) => {
                  e.stopPropagation(); // 阻止点击事件冒泡，防止点击节点时同时触发 document 的点击事件关闭提示框
@@ -495,38 +549,25 @@
                  if (index === 6) { // 中心节点 (索引6) 的特殊处理
                      // 中心节点即使未启用也可以点击查看描述
                      currentNodeIndex = index;
-                     // 如果中心节点已启用 (isCenterEnabled 为 true)，点击需要密码以执行功能 (showTooltip(true))；
-                     // 如果未启用，只显示描述 (showTooltip(false))，无需密码输入框。
-                     showTooltip(isCenterEnabled);
+                     showTooltip(isCenterEnabled); // 中心节点是否需要密码取决于是否启用
                      return; // 中心节点处理完毕，退出循环
                  }
 
                  // 对于环形节点 (0-5) 的处理
-                 if (index === 0) {
-                    // 节点0 (菱形) 是起点，始终可点击查看信息，无需密码输入框
-                    currentNodeIndex = index;
-                    showTooltip(false); // 显示节点0的描述，不显示密码输入区域
-                 } else { // 环形节点 1-5: 需要按顺序解锁
-                    // 检查上一个节点 (索引 index - 1) 是否已解锁 (在 unlockedNodes 数组中)
-                    // 注意：节点0 索引是 0, 对应解锁状态数组的 0
-                    // 节点1 索引是 1, 对应解锁状态数组的 1, 前一个节点是 0
-                    // 节点2 索引是 2, 对应解锁状态数组的 2, 前一个节点是 1
-                    // ...
-                    // 节点5 索引是 5, 对应解锁状态数组的 5, 前一个节点是 4
-                    if (!unlockedNodes[index - 1]) {
-                        alert("请按顺序解锁前一个节点！"); // 弹出提示
-                        return; // 如果前一个未解锁，阻止进一步操作
-                    }
+                 // 检查前一个节点是否已解锁 (除了节点0自身)
+                 if (index > 0 && !unlockedNodes[index - 1]) {
+                     alert("请按顺序解锁前一个节点！"); // 弹出提示
+                     return; // 如果前一个未解锁，阻止进一步操作
+                 }
 
-                    // 如果当前节点 (索引 index) 已解锁，只显示信息，无需密码输入框
-                    if (unlockedNodes[index]) {
-                        currentNodeIndex = index;
-                        showTooltip(false); // 显示当前节点的描述，不显示密码输入区域
-                    } else {
-                         // 当前节点未解锁，且前一个已解锁，显示提示框并要求输入密码
-                         currentNodeIndex = index;
-                         showTooltip(true); // 显示当前节点的描述，并显示密码输入区域
-                    }
+                 // 如果当前节点 (索引 index) 已解锁 (或者它是节点0)，只显示信息，无需密码输入框
+                 if (unlockedNodes[index]) {
+                     currentNodeIndex = index;
+                     showTooltip(false); // 显示当前节点的描述，不显示密码输入区域
+                 } else {
+                      // 当前节点未解锁，且前一个已解锁 (或当前是节点0)，显示提示框并要求输入密码 (节点0不需要密码)
+                      currentNodeIndex = index;
+                      showTooltip(index !== 0); // 节点0不需要密码，其他节点需要
                  }
             });
         });
@@ -548,9 +589,10 @@
         document.addEventListener('click', (e) => {
             // 检查：1.提示框是否可见； 2.点击位置是否在提示框内部； 3.点击位置是否在任何节点内部。
             // 如果提示框可见，且点击位置不在提示框和任何节点内部，则关闭提示框。
-            if (tooltip.style.display === 'block' &&
-                !tooltip.contains(e.target) &&
-                !e.target.closest('.node')) // closest() 检查元素本身或其任何父级是否匹配选择器
+            // 使用 e.target.closest('.tooltip') 和 e.target.closest('.node') 更准确
+             if (tooltip.style.display === 'block' &&
+                 !e.target.closest('.tooltip') &&
+                 !e.target.closest('.node'))
             {
                 tooltip.style.display = 'none'; // 隐藏提示框
                 currentNodeIndex = null; // 重置当前节点索引
@@ -558,10 +600,9 @@
             }
         });
 
-         // 页面加载完成后，初始化节点位置
-         positionNodes();
-         // 第一次加载时，进度条只画到节点0（点），会触发一次动画（虽然看不到）
-         updateProgress();
+         // 页面加载完成后，初始化
+         positionNodes(); // 定位 HTML 节点
+         createSegmentPaths(); // 创建 SVG 段路径并设置初始状态
 
 
          // 注意：根据您的要求，此处没有添加窗口 resize 事件监听，不做全屏适配。
