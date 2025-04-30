@@ -58,11 +58,9 @@
 
         /* 移动的点样式 */
         .traveling-dot {
-            fill: #66ccff; /* 点的颜色 */
-            r: 6; /* 点的半径 */
+            fill: #ffffff; /* 点的颜色 */
+            r: 4px; /* 点的半径 */
             display: none; /* 初始隐藏 */
-            z-index: 3; /* 确保点在路径上方 (SVG z-index 不像 HTML 那么直接，但元素顺序和坐标可以模拟) */
-             /* SVG circle 的 cx, cy 会通过 JS 设置 */
         }
 
 
@@ -197,6 +195,7 @@
         <svg class="progress-svg" viewBox="0 0 600 600">
             <!-- SVG 内部坐标系范围，圆心在 300, 300 -->
             <!-- 段路径，由JavaScript动态生成并控制显隐和动画 -->
+            <!-- 将段路径放在点的前面，确保点绘制在路径上方 -->
             <path id="segmentPath-0-1" class="segment-path"/>
             <path id="segmentPath-1-2" class="segment-path"/>
             <path id="segmentPath-2-3" class="segment-path"/>
@@ -351,7 +350,7 @@
                     return;
                 }
 
-                // 对于环形节点 (索引 0-5)，使用 nodeAngles 数组中对应索引的角度
+                // 对于环形节点 (索引 0-5)，使用 nodeAngles数组中对应索引的角度
                 const angleDeg = nodeAngles[index]; // 使用 data-index 作为 nodeAngles 的索引
                 // 计算节点在 SVG 坐标系中的位置 (相对于 SVG 左上角)，也就是相对于 ring-container 左上角的位置
                 const svgPos = calculateNodeSvgPosition(angleDeg);
