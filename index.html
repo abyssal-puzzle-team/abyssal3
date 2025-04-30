@@ -201,6 +201,8 @@
             <path id="segmentPath-2-3" class="segment-path"/>
             <path id="segmentPath-3-4" class="segment-path"/>
             <path id="segmentPath-4-5" class="segment-path"/>
+            <!-- 新增从节点5到节点0的路径 -->
+            <path id="segmentPath-5-0" class="segment-path"/>
 
             <!-- 移动的点 -->
             <circle id="travelingDot" class="traveling-dot"/>
@@ -249,7 +251,7 @@
 
         // 节点角度定义 (Math/JS 角度: 0=右, 90=下, 180=左, 270=上)
         // 顺序与解锁顺序一致： 0(底部菱形) -> 1(左下) -> 2(左上) -> 3(顶部) -> 4(右上) -> 5(右下)
-        const nodeAngles = [90, 150, 210, 270, 330, 30];
+        const nodeAngles = [90, 150, 210, 270, 330, 30]; // 6个环形节点角度
 
         const nodeDescriptions = [
             "这是位于最下方的菱形节点，它是整个系统的起点。\n它无需密码即可查看说明。",   // 节点0 (菱形, 底部)
@@ -270,7 +272,8 @@
             "centerpass"            // 节点6 (中心) 密码
         ];
 
-        const animationDuration = 2000; // 动画时长 (毫秒)
+        const animationDuration = 2000; // 单段动画时长 (毫秒)
+        const fullCircleAnimationDuration = 3000; // 解锁节点5时的整个圆环动画时长
 
         // ========== 配置结束 ==========
 
@@ -285,11 +288,12 @@
         const centerNode = document.getElementById('centerNode');
         const travelingDot = document.getElementById('travelingDot'); // 获取移动点元素
 
-        // 获取段路径元素
+        // 获取段路径元素。现在有 6 段路径：0-1, 1-2, ..., 4-5, 5-0
         const segmentPaths = [];
         for(let i = 0; i < 5; i++) { // 5段路径：0-1, 1-2, ..., 4-5
             segmentPaths.push(document.getElementById(`segmentPath-${i}-${i+1}`));
         }
+        segmentPaths.push(document.getElementById(`segmentPath-5-0`)); // 添加最后一段路径 5-0
 
 
         // unlockedNodes[i] 为 true 表示索引 i 的节点 (0-5) 已解锁
@@ -352,7 +356,7 @@
 
                 // 对于环形节点 (索引 0-5)，使用 nodeAngles数组中对应索引的角度
                 const angleDeg = nodeAngles[index]; // 使用 data-index 作为 nodeAngles 的索引
-                // 计算节点在 SVG 坐标系中的位置 (相对于 SVG 左上角)，也就是相对于 ring-container 左上角的位置
+                // 计算节点在 SVG坐标系中的位置 (相对于 SVG 左上角)，也就是相对于 ring-container 左上角的位置
                 const svgPos = calculateNodeSvgPosition(angleDeg);
 
                 // 设置节点的 top/left 属性
@@ -372,10 +376,19 @@
 
         // 创建并设置段路径的几何信息 (d属性)
         function createSegmentPaths() {
-             // 5 段路径: 0-1, 1-2, 2-3, 3-4, 4-5
-             for (let i = 0; i < 5; i++) {
-                 const startNodeIndex = i;
-                 const endNodeIndex = i + 1;
+             // 6 段路径: 0-1, 1-2, 2-3, 3-4, 4-5, 5-0
+             // 数组 segmentPaths 的索引 0-4 对应 0-1 到 4-5
+             // 数组 segmentPaths 的索引 5 对应 5-0
+
+             for (let i = 0; i < 6; i++) {
+                 let startNodeIndex, endNodeIndex;
+                 if (i < 5) {
+                     startNodeIndex = i;
+                     endNodeIndex = i + 1;
+                 } else { // 这是最后一段，从节点 5 到节点 0
+                     startNodeIndex = 5;
+                     endNodeIndex = 0;
+                 }
 
                  const startPos = calculateNodeSvgPosition(nodeAngles[startNodeIndex]);
                  const endPos = calculateNodeSvgPosition(nodeAngles[endNodeIndex]);
@@ -383,8 +396,8 @@
                  // SVG Arc command: A rx ry x-axis-rotation large-arc-flag sweep-flag x y
                  // rx, ry = radius (我们是圆，所以rx=ry=radius)
                  // x-axis-rotation = 0 (圆没有轴旋转)
-                 // sweep-flag = 1 (逆时针绘制，与视频一致)
                  // large-arc-flag = 0 (每段都是 60度，小于 180度)
+                 // sweep-flag = 1 (逆时针绘制，与视频一致)
 
                  const pathData = `M ${startPos.x} ${startPos.y} A ${radius} ${radius} 0 0 1 ${endPos.x} ${endPos.y}`;
 
@@ -396,6 +409,7 @@
                  const pathLength = pathElement.getTotalLength();
                  pathElement.style.strokeDasharray = pathLength;
                  pathElement.style.strokeDashoffset = pathLength; // 完全偏移隐藏
+                 // pathElement.style.stroke = '#66ccff'; // 初始不设置颜色，由JS控制
              }
         }
 
@@ -442,22 +456,43 @@
                               targetNode.classList.add('unlocked'); // 给节点添加视觉反馈类 (变色)
                          }
 
-                         // 触发段路径动画
-                         animateSegmentUnlock(currentNodeIndex);
+                         // --- 特殊逻辑：解锁节点 5 时，连续动画两个段，并使整个圆环激活 ---
+                         if (currentNodeIndex === 5) {
+                             // 动画绘制 4->5 段
+                             animatePathSegment(4, () => {
+                                 // 4->5 动画完成后，立即开始绘制 5->0 段
+                                 animatePathSegment(5, () => { // segment index 5 is for path 5-0
+                                     // 5->0 动画完成后，整个环形路径绘制完毕
+                                     console.log("环形路径解锁完成！");
+                                     // 确保所有段路径都完全绘制并显示激活颜色
+                                     segmentPaths.forEach(pathElement => {
+                                         pathElement.style.opacity = 1;
+                                         pathElement.style.stroke = '#66ccff'; // 确保颜色正确
+                                         pathElement.style.strokeDashoffset = 0; // 确保完全绘制
+                                     });
 
-                         // 检查是否所有环形节点 (1-5) 都已解锁
-                         let allRingNodesUnlocked = true;
-                         for(let i = 1; i <= 5; i++) {
-                             if (!unlockedNodes[i]) {
-                                 allRingNodesUnlocked = false;
-                                 break;
-                             }
+                                     // 检查是否所有环形节点 (1-5) 都已解锁，然后启用中心节点
+                                     let allRingNodesUnlocked = true; // 理论上到这里节点1-5都已解锁
+                                     for(let i = 1; i <= 5; i++) {
+                                         if (!unlockedNodes[i]) {
+                                             allRingNodesUnlocked = false;
+                                             break;
+                                         }
+                                     }
+                                     if (allRingNodesUnlocked) {
+                                         enableCenterNode();
+                                     }
+                                 }); // End of inner animatePathSegment callback
+                             }); // End of outer animatePathSegment callback
+
+                         } else {
+                             // 对于节点 1-4 的解锁，只动画当前段路径 (currentNodeIndex - 1)
+                             animatePathSegment(currentNodeIndex - 1);
+                             // 节点 1-4 解锁时不需要检查全环解锁，只在节点 5 解锁时检查
                          }
-                         // 如果所有环形节点 (1-5) 都已解锁，则启用中心节点
-                         if (allRingNodesUnlocked) {
-                             enableCenterNode();
-                         }
-                    }
+                         // --- 特殊逻辑结束 ---
+
+                    } // End of if (!unlockedNodes[currentNodeIndex])
 
                 } else if (currentNodeIndex === 6 && isCenterEnabled) {
                     // 已启用中心节点且密码正确 - 执行下一步操作 (例如页面跳转)
@@ -473,9 +508,9 @@
         }
 
         // 动画函数：移动点沿着路径移动并显示路径
-        function animateSegmentUnlock(unlockedNodeIndex) {
-            // 动画的段路径是从 unlockedNodeIndex - 1 到 unlockedNodeIndex
-            const segmentIndex = unlockedNodeIndex - 1; // 段路径索引 (0-4)
+        // segmentIndex: 要动画的段路径的索引 (0-5)
+        // onComplete: 动画完成时执行的回调函数
+        function animatePathSegment(segmentIndex, onComplete = null) {
             const pathElement = segmentPaths[segmentIndex];
 
             if (!pathElement) return; // 确保段路径存在
@@ -483,9 +518,9 @@
             const pathLength = pathElement.getTotalLength();
 
             // 设置段路径初始状态：可见但未绘制
-            pathElement.style.opacity = 1;
+            pathElement.style.opacity = 1; // 使路径可见
             pathElement.style.strokeDasharray = pathLength;
-            pathElement.style.strokeDashoffset = pathLength;
+            pathElement.style.strokeDashoffset = pathLength; // 完全偏移隐藏
 
             // 设置移动点初始位置并显示
             const startPoint = pathElement.getPointAtLength(0);
@@ -494,11 +529,12 @@
             travelingDot.style.display = 'block'; // 显示点
 
             let startTime = null;
+            const duration = (segmentIndex === 4 || segmentIndex === 5) ? fullCircleAnimationDuration / 2 : animationDuration; // 节点5解锁时的两段动画总时长，每段一半
 
             function step(timestamp) {
                 if (!startTime) startTime = timestamp;
                 const elapsed = timestamp - startTime; // 已经过去的时间
-                const progress = Math.min(elapsed / animationDuration, 1); // 动画进度 (0 到 1)
+                const progress = Math.min(elapsed / duration, 1); // 动画进度 (0 到 1)
 
                 const currentLength = pathLength * progress; // 点在路径上的当前长度
                 const currentPoint = pathElement.getPointAtLength(currentLength); // 点的当前坐标
@@ -508,8 +544,6 @@
                 travelingDot.setAttribute('cy', currentPoint.y);
 
                 // 更新路径的 stroke-dashoffset，使其逐渐显示
-                // 绘制的长度 = currentLength
-                // 需要隐藏的长度 = pathLength - currentLength
                 pathElement.style.strokeDashoffset = pathLength - currentLength;
 
                 // 如果动画未结束，继续下一帧
@@ -518,7 +552,16 @@
                 } else {
                     // 动画结束
                     pathElement.style.strokeDashoffset = 0; // 确保路径完全显示
-                    travelingDot.style.display = 'none'; // 隐藏点
+                    // 点在这里不立即隐藏，如果onComplete存在，点会留在终点直到下一段动画开始
+                    // 如果没有onComplete，则隐藏点
+                    if (!onComplete) {
+                       travelingDot.style.display = 'none';
+                    }
+
+                    // 执行完成回调
+                    if (onComplete) {
+                        onComplete();
+                    }
                 }
             }
 
