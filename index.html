@@ -30,7 +30,7 @@
             width: 100%; /* 占满父容器 (ring-container) */
             height: 100%; /* 占满父容器 */
             /* 视频中外圈不突出，可以降低透明度或颜色 */
-            border: 2px solid rgba(204, 0, 0, 0.3); /* 细边框，深红色，半透明 */
+            border: 4px solid rgba(204, 0, 0, 0.3); /* 细边框，深红色，半透明 */
             border-radius: 50%;
             top: 0;
             left: 0;
@@ -49,7 +49,7 @@
         .segment-path {
             fill: none; /* 不填充区域 */
             stroke: #66ccff; /* 浅蓝色描边 */
-            stroke-width: 4px; /* 描边宽度 */
+            stroke-width: 5px; /* 描边宽度 */
             stroke-linecap: round; /* 使描边端点圆润 */
             /* 初始隐藏，动画会改变 stroke-dashoffset */
             opacity: 0; /* 初始不可见 */
@@ -59,7 +59,7 @@
         /* 移动的点样式 */
         .traveling-dot {
             fill: #ffffff; /* 点的颜色 */
-            r: 4px; /* 点的半径 */
+            r: 5px; /* 点的半径 */
             display: none; /* 初始隐藏 */
         }
 
@@ -278,8 +278,8 @@
             "centerpass"            // 节点6 (中心) 密码
         ];
 
-        const animationDuration = 2000; // 单段动画时长 (毫秒)
-        const fullCircleAnimationDuration = 3000; // 解锁节点5时的整个圆环动画时长
+        const animationDuration = 1000; // 单段动画时长 (毫秒)
+        const fullCircleSegmentDuration = 1000; // 解锁节点5时每个路径段的动画时长 (4->5 and 5->0)
         const cooldownDuration = 5; // 密码错误后的冷却时长 (秒)
 
         // ========== 配置结束 ==========
@@ -296,12 +296,14 @@
         const travelingDot = document.getElementById('travelingDot');
 
         const segmentPaths = [];
-        for(let i = 0; i < 5; i++) {
-            segmentPaths.push(document.getElementById(`segmentPath-${i}-${i+1}`));
+        for(let i = 0; i < 6; i++) { // 0->1, 1->2, 2->3, 3->4, 4->5, 5->0
+            let start = i;
+            let end = (i + 1) % 6;
+            segmentPaths.push(document.getElementById(`segmentPath-${start}-${end}`));
         }
-        segmentPaths.push(document.getElementById(`segmentPath-5-0`));
 
-        let unlockedNodes = [true, false, false, false, false, false]; // 节点0-5 的解锁状态
+        // unlockedNodes 数组的索引对应节点 0-5
+        let unlockedNodes = [true, false, false, false, false, false]; // 节点0 默认已解锁
         let isCenterEnabled = false; // 中心节点默认锁定
         let currentNodeIndex = null; // 当前选中的节点索引 (0-6)
 
@@ -310,17 +312,21 @@
         let remainingCooldownTime = 0; // 用于倒计时显示
         let cooldownTimerId = null; // 用于存储 setInterval 的 ID
 
-        const radius = 300;
-        const circleCenterX = 300;
-        const circleCenterY = 300;
+        const radius = 300; // 圆环的半径
+        const containerSize = 600; // ring-container 的宽度/高度
+        const circleCenterX = containerSize / 2; // 圆环中心 X 坐标
+        const circleCenterY = containerSize / 2; // 圆环中心 Y 坐标
+
 
         // --- 初始化设置 ---
         positionNodes();
         createSegmentPaths();
+        // 初始化时将节点0标记为解锁状态的视觉效果
         const startNodeElement = document.querySelector('.node[data-index="0"]');
-        if (startNodeElement && startNodeElement.classList.contains('diamond')) {
+        if (startNodeElement) { // 节点0始终是菱形，无需检查 class
              startNodeElement.classList.add('unlocked');
         }
+
 
         function calculateNodeSvgPosition(angleDeg) {
              const angleRad = angleDeg * Math.PI / 180;
@@ -342,35 +348,46 @@
                 const svgPos = calculateNodeSvgPosition(angleDeg);
                 node.style.top = `${svgPos.y}px`;
                 node.style.left = `${svgPos.x}px`;
+                // 节点自身的中心需要对齐到计算出的位置，
+                // transform: translate(-50%, -50%) 是为了将元素的中心点而不是左上角定位到指定坐标。
+                // 菱形需要额外旋转45度。
+                let transform = 'translate(-50%, -50%)';
                 if (node.classList.contains('diamond')) {
-                     node.style.transform = `translate(-50%, -50%) rotate(45deg)`;
-                } else {
-                     node.style.transform = `translate(-50%, -50%)`;
+                     transform += ' rotate(45deg)';
                 }
+                 node.style.transform = transform;
+
             });
         }
 
         function createSegmentPaths() {
              for (let i = 0; i < 6; i++) {
-                 let startNodeIndex, endNodeIndex;
-                 if (i < 5) {
-                     startNodeIndex = i;
-                     endNodeIndex = i + 1;
-                 } else {
-                     startNodeIndex = 5;
-                     endNodeIndex = 0;
-                 }
+                 let startNodeIndex = i;
+                 let endNodeIndex = (i + 1) % 6; // 最后一个节点 (5) 连接回节点0
                  const startPos = calculateNodeSvgPosition(nodeAngles[startNodeIndex]);
                  const endPos = calculateNodeSvgPosition(nodeAngles[endNodeIndex]);
-                 const pathData = `M ${startPos.x} ${startPos.y} A ${radius} ${radius} 0 0 1 ${endPos.x} ${endPos.y}`;
+
+                 // 判断是小弧还是大弧：
+                 // 如果角度差小于180度 (PI 弧度)，用小弧 (sweep-flag 0)。
+                 // 如果角度差大于等于180度，用大弧 (sweep-flag 1)。
+                 // 对于圆上的连续节点，通常是小弧。这里我们是顺时针连接，sweep-flag 1 确保顺时针画弧。
+                 // arc-flag 0 确保是小弧 (角度差 < 180)，除非起点和终点重合。
+                 // 但更简单的做法是固定sweep-flag为1（顺时针）和large-arc-flag为0（小弧），因为我们的节点分布保证了每段小于180度。
+                 const largeArcFlag = 0; // 小弧
+                 const sweepFlag = 1; // 顺时针
+
+                 const pathData = `M ${startPos.x} ${startPos.y} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${endPos.x} ${endPos.y}`;
                  const pathElement = segmentPaths[i];
-                 pathElement.setAttribute('d', pathData);
-                 const pathLength = pathElement.getTotalLength();
-                 pathElement.style.strokeDasharray = pathLength;
-                 pathElement.style.strokeDashoffset = pathLength;
-                 pathElement.style.opacity = 0;
+                 if (pathElement) {
+                     pathElement.setAttribute('d', pathData);
+                     const pathLength = pathElement.getTotalLength();
+                     pathElement.style.strokeDasharray = pathLength;
+                     pathElement.style.strokeDashoffset = pathLength;
+                     pathElement.style.opacity = 0; // 初始隐藏路径
+                 }
              }
         }
+
 
         // 结束冷却状态，恢复输入
         function endCooldown() {
@@ -401,6 +418,7 @@
             // 清除任何现有的计时器，防止重复
             if (cooldownTimerId !== null) {
                 clearInterval(cooldownTimerId);
+                cooldownTimerId = null; // 重置 ID
             }
 
             // 启动每秒更新的计时器
@@ -455,7 +473,7 @@
                  }
             }
 
-            tooltip.scrollTop = 0;
+            tooltip.scrollTop = 0; // 滚动到提示框顶部
         }
 
         // 检查密码并处理解锁
@@ -463,7 +481,6 @@
             // 如果正在冷却，阻止新的尝试
             if (isCoolingDown) {
                 console.log("System is in cooldown. Please wait.");
-                 // 错误信息已经在倒计时中，无需重复设置
                 return;
             }
 
@@ -473,16 +490,16 @@
 
             if (input === nodePasswords[currentNodeIndex]) {
                 // --- 密码正确 ---
+                console.log(`Password correct for node ${currentNodeIndex}.`);
                 errorMsg.textContent = ''; // 清空错误信息
                 tooltip.style.display = 'none'; // 隐藏提示框
 
-                // 如果之前在冷却，正确输入后停止计时器
+                // 如果之前在冷却，正确输入后停止计时器并清理状态
                 if (cooldownTimerId !== null) {
                     clearInterval(cooldownTimerId);
                     cooldownTimerId = null;
                     isCoolingDown = false;
                     remainingCooldownTime = 0;
-                     // 确保输入框和按钮恢复正常状态
                     passwordInput.disabled = false;
                     unlockButton.disabled = false;
                 }
@@ -493,87 +510,114 @@
                     if (!unlockedNodes[currentNodeIndex]) {
                          unlockedNodes[currentNodeIndex] = true;
                          const targetNode = document.querySelector(`.node[data-index="${currentNodeIndex}"]`);
-                         if (targetNode) {
-                              targetNode.classList.add('unlocked');
-                         }
+                         const segmentIndex = currentNodeIndex - 1; // Segment index is currentNodeIndex - 1 for nodes 1-5
 
                          if (currentNodeIndex === 5) {
-                             animatePathSegment(4, () => {
-                                 animatePathSegment(5, () => {
-                                     segmentPaths.forEach(pathElement => {
-                                         pathElement.style.opacity = 1;
-                                         pathElement.style.stroke = '#66ccff';
-                                         pathElement.style.strokeDashoffset = 0;
-                                     });
-                                     let allRingNodesUnlocked = true;
-                                     for(let i = 1; i <= 5; i++) {
-                                         if (!unlockedNodes[i]) {
-                                             allRingNodesUnlocked = false;
-                                             break;
-                                         }
-                                     }
-                                     if (allRingNodesUnlocked) {
-                                         enableCenterNode();
-                                     }
-                                 });
+                             // 特殊处理节点5的解锁动画：路径4->5 -> 节点5变蓝 -> 路径5->0 -> 整个圆环高亮
+                             animatePathSegment(segmentIndex, fullCircleSegmentDuration, () => { // 动画路径 4->5
+                                  // 动画完成后，节点5变蓝
+                                  if (targetNode) {
+                                       targetNode.classList.add('unlocked');
+                                  }
+                                  console.log("Node 5 unlocked, starting segment 5->0 animation.");
+                                  // 接着动画路径 5->0
+                                  animatePathSegment(5, fullCircleSegmentDuration, () => { // Segment 5 is 5->0
+                                      // 路径 5->0 动画完成后，所有路径高亮并检查中心节点
+                                      console.log("Segment 5->0 animation complete. Highlighting all paths.");
+                                      segmentPaths.forEach(pathElement => {
+                                          pathElement.style.opacity = 1; // 使所有路径完全可见
+                                          pathElement.style.stroke = '#66ccff'; // 确保颜色正确
+                                          pathElement.style.strokeDashoffset = 0; // 确保所有路径看起来完整
+                                      });
+
+                                      // 检查是否所有环形节点都已解锁
+                                      let allRingNodesUnlocked = true;
+                                      for(let i = 1; i <= 5; i++) {
+                                          if (!unlockedNodes[i]) {
+                                              allRingNodesUnlocked = false;
+                                              break;
+                                          }
+                                      }
+                                      if (allRingNodesUnlocked) {
+                                          enableCenterNode();
+                                      }
+                                  });
                              });
+
                          } else {
-                             animatePathSegment(currentNodeIndex - 1);
+                             // 解锁节点 1 到 4 的通用流程：动画路径 -> 节点变蓝
+                             animatePathSegment(segmentIndex, animationDuration, () => {
+                                  // 动画完成后，节点变蓝
+                                  if (targetNode) {
+                                       targetNode.classList.add('unlocked');
+                                  }
+                             });
                          }
+                    } else {
+                        // 节点已解锁但用户再次点击并输入正确密码 (不进行解锁或动画，只关闭提示框)
+                         console.log(`Node ${currentNodeIndex} already unlocked.`);
                     }
                 } else if (currentNodeIndex === 6 && isCenterEnabled) {
                     // 已启用中心节点且密码正确
+                    console.log("Center node unlocked!");
                     alert("中心节点解锁成功！即将进入下一阶段...");
-                    // window.location.href = 'next.html';
+                    // window.location.href = 'next.html'; // 可以在这里跳转
                 }
 
                  currentNodeIndex = null; // 操作成功后重置当前节点索引
             } else {
                 // --- 密码错误 ---
+                console.log("Password incorrect.");
                 passwordInput.value = ''; // 清空输入框
                 startCooldown(); // 启动冷却机制和倒计时显示
             }
         }
 
         // 动画函数：移动点沿着路径移动并显示路径
-        function animatePathSegment(segmentIndex, onComplete = null) {
+        // segmentIndex: 要动画的路径段的索引 (0-5)
+        // duration: 动画时长 (毫秒)
+        // onComplete: 动画完成后的回调函数 (可选)
+        function animatePathSegment(segmentIndex, duration, onComplete = null) {
             const pathElement = segmentPaths[segmentIndex];
-            if (!pathElement) return;
+            if (!pathElement) {
+                 console.error(`Segment path with index ${segmentIndex} not found.`);
+                 if (onComplete) onComplete(); // 如果路径不存在，直接调用完成回调（如果存在）
+                 return;
+            }
 
             const pathLength = pathElement.getTotalLength();
-            pathElement.style.opacity = 1;
+            pathElement.style.opacity = 1; // 使当前路径可见
             pathElement.style.strokeDasharray = pathLength;
-            pathElement.style.strokeDashoffset = pathLength;
+            pathElement.style.strokeDashoffset = pathLength; // 初始隐藏路径
 
             const startPoint = pathElement.getPointAtLength(0);
             travelingDot.setAttribute('cx', startPoint.x);
             travelingDot.setAttribute('cy', startPoint.y);
-            travelingDot.style.display = 'block';
+            travelingDot.style.display = 'block'; // 显示移动的点
 
             let startTime = null;
-            const duration = (segmentIndex === 4 || segmentIndex === 5) ? fullCircleAnimationDuration / 2 : animationDuration;
 
             function step(timestamp) {
                 if (!startTime) startTime = timestamp;
                 const elapsed = timestamp - startTime;
-                const progress = Math.min(elapsed / duration, 1);
+                const progress = Math.min(elapsed / duration, 1); // 0 to 1
 
                 const currentLength = pathLength * progress;
                 const currentPoint = pathElement.getPointAtLength(currentLength);
 
                 travelingDot.setAttribute('cx', currentPoint.x);
                 travelingDot.setAttribute('cy', currentPoint.y);
-                pathElement.style.strokeDashoffset = pathLength - currentLength;
+                pathElement.style.strokeDashoffset = pathLength - currentLength; // 动画路径
 
                 if (progress < 1) {
                     requestAnimationFrame(step);
                 } else {
-                    pathElement.style.strokeDashoffset = 0;
-                    if (!onComplete) {
-                       travelingDot.style.display = 'none';
-                    }
+                    // 动画完成
+                    pathElement.style.strokeDashoffset = 0; // 确保路径完全显示
+                    travelingDot.style.display = 'none'; // 隐藏移动的点
+
                     if (onComplete) {
-                        onComplete();
+                        onComplete(); // 执行完成回调
                     }
                 }
             }
@@ -585,17 +629,35 @@
             isCenterEnabled = true;
             centerNode.classList.add('enabled');
             console.log("中心节点已解锁！");
+            // 可以选择在这里显示中心节点的说明，或者让用户点击后才能看
+            // currentNodeIndex = 6; // 设置当前节点为中心，以便下次点击显示正确信息
+            // showTooltip(true); // 显示中心节点说明 (包含进入按钮)
         }
 
         // --- 事件监听 ---
         nodes.forEach(node => {
             const index = parseInt(node.dataset.index);
             node.addEventListener('click', (e) => {
-                 e.stopPropagation();
+                 e.stopPropagation(); // 防止点击节点导致关闭提示框
+
+                 if (isCoolingDown) {
+                      console.log("System in cooldown, cannot interact with nodes.");
+                      return; // 冷却中阻止点击节点
+                 }
+
+                 // 如果当前节点不是本次点击的节点，则重置状态
+                 if (currentNodeIndex !== null && currentNodeIndex !== index) {
+                     tooltip.style.display = 'none';
+                     passwordInput.value = '';
+                     errorMsg.textContent = '';
+                     // 如果之前有冷却计时器，理论上点击节点不应该取消它，
+                     // 但如果设计上点击新节点意味着放弃当前解锁，则需要clearInterval
+                     // 这里假设冷却仅针对密码输入，点击其他节点不受影响，但不能在冷却时输入新密码
+                 }
+                 currentNodeIndex = index; // 更新当前选中的节点索引
 
                  if (index === 6) { // 中心节点
-                     currentNodeIndex = index;
-                     showTooltip(isCenterEnabled);
+                     showTooltip(isCenterEnabled); // 已启用需要密码/进入，未启用只看说明
                      return;
                  }
 
@@ -603,16 +665,15 @@
                  // 节点0不需要前置解锁，节点1-5需要前一个解锁
                  if (index > 0 && !unlockedNodes[index - 1]) {
                      alert("请按顺序解锁前一个节点！");
+                     currentNodeIndex = null; // 阻止点击
                      return;
                  }
 
                  // 如果节点已解锁 (节点0默认已解锁)，只显示信息
                  if (unlockedNodes[index]) {
-                     currentNodeIndex = index;
                      showTooltip(false); // 不显示密码表单
                  } else {
                       // 节点未解锁，且前一个已解锁 (或当前是节点0)，显示密码表单 (节点0不需要密码)
-                      currentNodeIndex = index;
                       showTooltip(index >= 1 && index <= 5); // 节点1-5需要密码
                  }
             });
@@ -624,25 +685,25 @@
         // 密码输入框回车事件
         passwordInput.addEventListener('keypress', function(event) {
             if (event.key === 'Enter') {
-                event.preventDefault();
+                event.preventDefault(); // 阻止表单默认提交
                 checkPassword();
             }
         });
 
         // 点击提示框外部区域关闭
         document.addEventListener('click', (e) => {
+             // 只有当提示框显示，且点击目标不是提示框内部也不是节点时关闭
+             // 并且不在冷却状态时才关闭
              if (tooltip.style.display === 'block' &&
                  !e.target.closest('.tooltip') &&
-                 !e.target.closest('.node'))
+                 !e.target.closest('.node') &&
+                 !isCoolingDown) // 冷却中不允许通过点击外部关闭
             {
-                 // 只有当不在冷却中时才关闭提示框并清空状态
-                 if (!isCoolingDown) {
-                     tooltip.style.display = 'none';
-                     currentNodeIndex = null;
-                     errorMsg.textContent = '';
-                     passwordInput.value = '';
-                 }
-                 // 如果在冷却中，点击外部不关闭，计时器会继续运行并更新 errorMsg
+                 tooltip.style.display = 'none';
+                 currentNodeIndex = null;
+                 errorMsg.textContent = '';
+                 passwordInput.value = '';
+                 // 如果有冷却计时器，确保点击外部不会中断它 (上面isCoolingDown检查已经确保)
             }
         });
 
