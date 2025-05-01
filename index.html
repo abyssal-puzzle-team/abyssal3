@@ -16,6 +16,17 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh; /* 确保body至少占满视口高度 */
+
+            /* --- 背景图片设置 --- */
+            /* TODO: 将 'path/to/your/background-image.jpg' 替换为你的图片路径 */
+            background-image: url('./img/background.jpeg');
+            background-size: cover; /* 使背景图片覆盖整个元素 */
+            background-repeat: no-repeat; /* 不重复背景图片 */
+            background-attachment: fixed; /* 背景图片固定，不随滚动条滚动 */
+            background-position: center; /* 背景图片居中显示 */
+            /* 你也可以添加 background-color 作为图片加载前的备用背景色 */
+            /* background-color: #121212; */
+            /* --- 背景图片设置结束 --- */
         }
         /* 圆环容器，固定大小并居中 */
         .ring-container {
@@ -193,6 +204,17 @@
     </style>
 </head>
 <body>
+
+    <!-- --- 背景音乐设置 --- -->
+    <!-- TODO: 将 'path/to/your/background-music.mp3' 替换为你的音乐文件路径 -->
+    <audio id="backgroundAudio" autoplay loop>
+        <source src="./mp3/main.mp3" type="audio/mpeg">
+        <!-- 可以添加其他格式的音频文件作为备用 -->
+        <!-- <source src="path/to/your/background-music.ogg" type="audio/ogg"> -->
+        您的浏览器不支持音频元素。
+    </audio>
+    <!-- --- 背景音乐设置结束 --- -->
+
     <div class="ring-container">
         <!-- 主圆环 -->
         <div class="main-ring"></div>
@@ -294,6 +316,7 @@
         const errorMsg = document.getElementById('errorMsg');
         const centerNode = document.getElementById('centerNode');
         const travelingDot = document.getElementById('travelingDot');
+        const audioElement = document.getElementById('backgroundAudio'); // 获取音频元素
 
         const segmentPaths = [];
         for(let i = 0; i < 6; i++) { // 0->1, 1->2, 2->3, 3->4, 4->5, 5->0
@@ -634,11 +657,53 @@
             // showTooltip(true); // 显示中心节点说明 (包含进入按钮)
         }
 
+        // --- 音频播放控制 ---
+        // 函数：在用户交互后尝试播放音频
+        let audioPlayed = false; // 标志变量，确保只尝试播放一次
+        function tryPlayAudio() {
+             // 如果音频元素不存在或者已经尝试播放过，则不再执行
+            if (!audioElement || audioPlayed) {
+                 return;
+            }
+
+            audioElement.play().then(() => {
+                // 播放成功
+                console.log("Audio playback started.");
+                audioPlayed = true; // 设置标志为 true
+                // 成功播放后，移除监听器，避免重复触发
+                document.removeEventListener('click', tryPlayAudio);
+                document.removeEventListener('keydown', tryPlayAudio); // 移除键盘监听
+            }).catch(error => {
+                // 播放失败 (例如，浏览器策略仍然阻止)
+                // 即使失败，也设置为已尝试，避免在某些情况下无限循环
+                // 但更安全的做法是只在成功时移除监听，以便后续交互能触发
+                // console.warn("Audio playback failed after interaction:", error);
+                // 移除监听器逻辑在这里应该取决于你希望失败后怎么办
+                // 如果希望每次点击都重试直到成功，则不移除监听
+                // 如果希望只在第一次成功后停止，则需要更复杂的逻辑
+                // 对于“任何地方点击一次播放”，失败了可能需要用户再次点击，所以不移除监听更好
+                // 暂时不移除，让后续点击有机会触发
+                console.warn("Attempted audio playback and it failed (likely browser policy). Waiting for another interaction if needed.");
+                // audioPlayed = true; // 如果失败了，不设置audioPlayed为true，让下一次点击可以重试
+            });
+        }
+
+        // 在文档上监听点击事件，第一次点击将触发 tryPlayAudio
+        document.addEventListener('click', tryPlayAudio);
+
+        // 也可以添加键盘按下事件，因为键盘交互也算作用户交互
+        document.addEventListener('keydown', tryPlayAudio);
+
+
         // --- 事件监听 ---
         nodes.forEach(node => {
             const index = parseInt(node.dataset.index);
             node.addEventListener('click', (e) => {
                  e.stopPropagation(); // 防止点击节点导致关闭提示框
+
+                 // 在处理节点逻辑前，先尝试播放音频（如果还没播放）
+                 tryPlayAudio();
+
 
                  if (isCoolingDown) {
                       console.log("System in cooldown, cannot interact with nodes.");
@@ -650,9 +715,6 @@
                      tooltip.style.display = 'none';
                      passwordInput.value = '';
                      errorMsg.textContent = '';
-                     // 如果之前有冷却计时器，理论上点击节点不应该取消它，
-                     // 但如果设计上点击新节点意味着放弃当前解锁，则需要clearInterval
-                     // 这里假设冷却仅针对密码输入，点击其他节点不受影响，但不能在冷却时输入新密码
                  }
                  currentNodeIndex = index; // 更新当前选中的节点索引
 
@@ -703,8 +765,9 @@
                  currentNodeIndex = null;
                  errorMsg.textContent = '';
                  passwordInput.value = '';
-                 // 如果有冷却计时器，确保点击外部不会中断它 (上面isCoolingDown检查已经确保)
             }
+             // tryPlayAudio 函数会在 document click 时被触发，这是预期的行为。
+             // 它内部有逻辑确保只在音频未播放时尝试。
         });
 
         // 页面加载后初始化
