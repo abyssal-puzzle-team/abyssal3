@@ -2,777 +2,661 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>环形进度系统</title>
+    <title>环形进度系统 (完整版 - 预检冷却)</title>
     <style>
-        /* 深色模式基础样式 */
+        /* --- 基础和布局样式 --- */
         body {
-            margin: 0;
-            padding: 0;
-            background: #121212;
-            color: #ffffff;
-            font-family: Arial, sans-serif;
-            overflow: hidden; /* 防止滚动条出现 */
-            display: flex; /* 使用 flexbox 将内容居中 */
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh; /* 确保body至少占满视口高度 */
-
-            /* --- 背景图片设置 --- */
-            /* TODO: 将 'path/to/your/background-image.jpg' 替换为你的图片路径 */
+            margin: 0;                      /* 移除默认边距 */
+            padding: 0;                     /* 移除默认内边距 */
+            background-color: #121212;      /* 深色背景 */
+            color: #fff;                    /* 浅色文字 */
+            font-family: Arial, sans-serif; /* 设置字体 */
+            overflow: hidden;               /* 隐藏滚动条 */
+            display: flex;                  /* 使用 Flexbox 布局 */
+            justify-content: center;        /* 水平居中 */
+            align-items: center;            /* 垂直居中 */
+            min-height: 100vh;              /* 最小高度为视口高度 */
+            /* 添加背景图片 */
             background-image: url('./img/background.jpeg');
-            background-size: cover; /* 使背景图片覆盖整个元素 */
-            background-repeat: no-repeat; /* 不重复背景图片 */
-            background-attachment: fixed; /* 背景图片固定，不随滚动条滚动 */
-            background-position: center; /* 背景图片居中显示 */
-            /* 你也可以添加 background-color 作为图片加载前的备用背景色 */
-            /* background-color: #121212; */
-            /* --- 背景图片设置结束 --- */
+            background-size: cover;         /* 图片覆盖整个背景区域 */
+            background-repeat: no-repeat;   /* 图片不重复 */
+            background-attachment: fixed;   /* 背景图片固定，不随滚动条滚动 */
+            background-position: center;    /* 图片居中显示 */
         }
-        /* 圆环容器，固定大小并居中 */
+
+        /* --- 环形容器 --- */
         .ring-container {
-            position: relative; /* 允许子元素绝对定位 */
-            width: 600px; /* 固定宽度 */
-            height: 600px; /* 固定高度 */
-            /* flexbox 已处理居中 */
+            position: relative;             /* 作为内部绝对定位元素的参考 */
+            width: 600px;                   /* 容器宽度 */
+            height: 600px;                  /* 容器高度 */
         }
-        /* 主圆环样式 - 根据视频，外圈圆环不是很明显，可以稍微调整样式或透明度 */
+
+        /* --- 主圆环边框 --- */
         .main-ring {
-            position: absolute;
-            width: 100%; /* 占满父容器 (ring-container) */
-            height: 100%; /* 占满父容器 */
-            /* 视频中外圈不突出，可以降低透明度或颜色 */
-            border: 4px solid rgba(204, 0, 0, 0.3); /* 细边框，深红色，半透明 */
-            border-radius: 50%;
-            top: 0;
-            left: 0;
+            position: absolute;             /* 绝对定位 */
+            width: 100%;                    /* 宽度占满容器 */
+            height: 100%;                   /* 高度占满容器 */
+            border: 4px solid rgba(204, 0, 0, .3); /* 红色半透明边框 */
+            border-radius: 50%;             /* 圆形 */
+            top: 0;                         /* 顶部对齐 */
+            left: 0;                        /* 左侧对齐 */
+            box-sizing: border-box;         /* 边框包含在宽高内 */
         }
-        /* 进度环 SVG 容器 */
+
+        /* --- SVG 进度环 --- */
         .progress-svg {
-            position: absolute;
-            width: 100%; /* 占满父容器 */
-            height: 100%; /* 占满父容器 */
-            top: 0;
-            left: 0;
-            /* viewBox="0 0 600 600" 在 SVG 标签上 */
-            overflow: visible; /* 防止路径的stroke-linecap在边界被裁切 */
+            position: absolute;             /* 绝对定位 */
+            width: 100%;                    /* 宽度占满容器 */
+            height: 100%;                   /* 高度占满容器 */
+            top: 0;                         /* 顶部对齐 */
+            left: 0;                        /* 左侧对齐 */
+            overflow: visible;              /* 允许内容（如发光效果或点）溢出 */
         }
-        /* SVG 段路径样式 */
+
+        /* --- SVG 路径段 --- */
         .segment-path {
-            fill: none; /* 不填充区域 */
-            stroke: #66ccff; /* 浅蓝色描边 */
-            stroke-width: 5px; /* 描边宽度 */
-            stroke-linecap: round; /* 使描边端点圆润 */
-            /* 初始隐藏，动画会改变 stroke-dashoffset */
-            opacity: 0; /* 初始不可见 */
-            transition: none; /* 移除 stroke-dashoffset 的 CSS transition */
+            fill: none;                     /* 无填充色 */
+            stroke: #6cf;                   /* 路径颜色 (浅蓝色) */
+            stroke-width: 5px;              /* 路径宽度 */
+            stroke-linecap: round;          /* 路径端点为圆形 */
+            opacity: 0;                     /* 初始透明 */
+            transition: none;               /* 动画由 JS 控制，无需 CSS 过渡 */
         }
 
-        /* 移动的点样式 */
+        /* --- SVG 移动的点 --- */
         .traveling-dot {
-            fill: #ffffff; /* 点的颜色 */
-            r: 5px; /* 点的半径 */
-            display: none; /* 初始隐藏 */
+            fill: #fff;                     /* 点的颜色 (白色) */
+            r: 5px;                         /* 点的半径 */
+            display: none;                  /* 初始隐藏 */
         }
 
-
-        /* 节点基础样式 */
+        /* --- 节点通用样式 --- */
         .node {
-            position: absolute;
-            /* top/left 将由JavaScript精确计算设置 */
-            cursor: pointer; /* 鼠标悬停显示手型 */
-            z-index: 2; /* 放在圆环上方 */
-            text-align: center; /* 文本居中 */
-            box-sizing: border-box; /* 边框和内边距包含在元素的 width/height 内 */
-            border: 2px solid #ffffff; /* 白色边框 */
-             transition: background 0.3s ease, border-color 0.3s ease; /* 添加背景和边框颜色动画 */
+            position: absolute;             /* 绝对定位 */
+            cursor: pointer;                /* 鼠标悬停时显示指针 */
+            z-index: 2;                     /* 节点在 SVG 之上 */
+            text-align: center;             /* 文本居中 (用于中心节点) */
+            box-sizing: border-box;         /* 边框包含在宽高内 */
+            border: 2px solid #fff;         /* 默认白色边框 */
+            transition: background .3s ease, border-color .3s ease; /* 背景和边框颜色过渡 */
         }
-        /* 节点尺寸 */
+
+        /* --- 节点形状和大小 (菱形、方形、中心) --- */
         .node.diamond, .node.square, .center-node {
-             width: 40px;
-             height: 40px;
+            width: 40px;                    /* 常规节点宽度 */
+            height: 40px;                   /* 常规节点高度 */
         }
-        /* 菱形节点样式（索引0） */
         .node.diamond {
-            background: #ffffff; /* 默认白色背景 */
-            /* transform 会在 JS 设置 top/left 后应用 */
+            background: #fff;               /* 菱形初始背景 (白色) */
+            /* 旋转在 JS 中通过 transform 实现 */
         }
-        /* 正方形节点样式 */
         .node.square {
-            background: #333; /* 未解锁时为深色背景 */
-             /* transform 会在 JS 设置 top/left 后应用 */
+            background: #333;               /* 方形初始背景 (深灰色) */
         }
-
-        /* 中间节点样式（索引6） */
         .center-node {
-            width: 60px;
-            height: 60px;
-            background: #333; /* 未启用时为深色背景 */
-            opacity: 0.5; /* 半透明 */
-            pointer-events: none; /* 默认不可点击 */
-            display: flex; /* 使文字居中 */
-            justify-content: center; /* 文字水平居中 */
-            align-items: center; /* 文字垂直居中 */
-            font-size: 14px; /* 文字大小 */
-            color: #ffffff; /* 文字颜色 */
-            /* transform 会在 JS 设置 top/left 后应用 */
-             transition: opacity 0.3s ease, background 0.3s ease, color 0.3s ease, pointer-events 0.3s ease; /* 添加状态变化动画 */
+            width: 60px;                    /* 中心节点宽度 */
+            height: 60px;                   /* 中心节点高度 */
+            background: #333;               /* 中心节点初始背景 (深灰色) */
+            opacity: .5;                    /* 中心节点初始半透明 */
+            pointer-events: none;           /* 中心节点初始不可点击 */
+            border-radius: 50%;             /* 中心节点为圆形 */
+            display: flex;                  /* 使用 Flexbox 布局 */
+            justify-content: center;        /* 内部文字水平居中 */
+            align-items: center;            /* 内部文字垂直居中 */
+            font-size: 14px;                /* 中心节点文字大小 */
+            color: #fff;                    /* 中心节点文字颜色 */
+            transition: opacity .3s ease, background .3s ease, color .3s ease, pointer-events .3s ease, border-color .3s ease; /* 多属性过渡 */
         }
 
-        /* 解锁节点样式 */
-        .node.unlocked.diamond,
-        .node.unlocked.square {
-             background: #66ccff; /* 解锁后变为浅蓝色 */
-             border-color: #66ccff; /* 边框颜色也变 */
+        /* --- 解锁后的节点样式 --- */
+        .node.unlocked.diamond, .node.unlocked.square {
+            background: #6cf;               /* 解锁后背景色 (浅蓝色) */
+            border-color: #6cf;             /* 解锁后边框色 (浅蓝色) */
         }
         .center-node.enabled {
-             opacity: 1; /* 完全不透明 */
-             pointer-events: auto; /* 启用后可点击 */
-             background: #ffffff; /* 启用后背景变白色 */
-             color: #121212; /* 启用后文字变深色 */
+            opacity: 1;                     /* 启用后不透明 */
+            pointer-events: auto;           /* 启用后可点击 */
+            background: #fff;               /* 启用后背景色 (白色) */
+            color: #121212;                 /* 启用后文字颜色 (深色) */
+            cursor: pointer;                /* 鼠标悬停时显示指针 */
+            border-color: #fff;             /* 边框颜色 (白色) */
         }
 
-        /* 提示框样式 */
+        /* --- 提示框样式 --- */
         .tooltip {
-            position: fixed; /* 固定在视口中 */
-            right: 20px; /* 距离右侧 20px */
-            top: 20px; /* 距离顶部 20px */
-            width: 300px; /* 固定宽度 */
-            height: 80vh; /* 高度为视口高度的 80% */
-            background: #1e1e1e; /* 深色背景 */
-            border: 2px solid #ffffff; /* 白色边框 */
-            overflow-y: auto; /* 垂直方向允许滚动 */
-            padding: 10px; /* 内边距 */
-            box-sizing: border-box; /* 边框和内边距包含在 width/height 内 */
-            display: none; /* 默认隐藏 */
-            z-index: 3; /* 放在最顶层 */
-            color: #cccccc; /* 文字颜色 */
-        }
-
-        /* 密码输入区域 */
-        .password-form {
-            position: sticky; /* 尝试固定在滚动区域底部，兼容性需注意 */
-            bottom: 0; /* 固定在底部 */
-            background: #1e1e1e; /* 与提示框背景一致 */
-            padding: 10px 0 0 0; /* 上边距，左右下无内边距 */
-            margin: 0; /* 无外边距 */
-            width: 100%; /* 占满父容器宽度 */
-            box-sizing: border-box;
-        }
-        /* 针对新的 type="text" 输入框应用样式 */
-        .password-form input[type="text"] {
-            width: calc(100% - 18px); /* 调整宽度以适应内边距和边框 */
-            padding: 8px; /* 内边距 */
-            margin-bottom: 5px; /* 下边距 */
-            box-sizing: border-box;
-            background: #333; /* 输入框背景色 */
-            color: white; /* 文字颜色 */
-            border: 1px solid #666; /* 边框颜色 */
-            display: block; /* 使元素独占一行 */
-        }
-        .password-form button {
-            width: 100%; /* 占满父容器宽度 */
-            padding: 8px; /* 内边距 */
-            background: #4CAF50; /* 背景绿色 */
-            color: white; /* 文字白色 */
-            border: none; /* 无边框 */
-            cursor: pointer; /* 鼠标悬停显示手型 */
-            display: block; /* 使元素独占一行 */
-             transition: background 0.3s ease; /* 背景颜色变化动画 */
-        }
-        .password-form button:not(:disabled):hover { /* 鼠标悬停效果只在非禁用状态下显示 */
-            background: #45a049; /* 鼠标悬停背景变深 */
-        }
-         .password-form button:disabled {
-             background: #666; /* 禁用时背景变灰 */
-             cursor: not-allowed; /* 禁用时鼠标变禁止符号 */
-         }
-        .error {
-            color: red; /* 文字红色 */
-            text-align: center; /* 文字居中 */
-            margin-top: 5px; /* 上边距 */
-            font-size: 0.9em; /* 文字大小 */
+            position: fixed;                /* 固定定位，不随页面滚动 */
+            right: 20px;                    /* 距离右边 20px */
+            top: 20px;                      /* 距离顶部 20px */
+            width: 300px;                   /* 提示框宽度 */
+            height: 80vh;                   /* 提示框高度 (视口高度的80%) */
+            background: #1e1e1e;            /* 提示框背景色 (深灰色) */
+            border: 2px solid #fff;         /* 提示框边框 (白色) */
+            overflow-y: auto;               /* 内容超出时显示垂直滚动条 */
+            padding: 10px;                  /* 内边距 */
+            box-sizing: border-box;         /* 内边距和边框包含在宽高内 */
+            display: none;                  /* 初始隐藏 */
+            z-index: 3;                     /* 在其他元素之上 */
+            color: #ccc;                    /* 提示框文字颜色 (浅灰色) */
         }
         #tooltipContent {
-            margin-bottom: 20px; /* 在内容和密码表单之间留白 */
-             word-wrap: break-word; /* 防止长文本溢出 */
-             white-space: pre-wrap; /* 保留换行符，使说明文字格式更灵活 */
+            margin-bottom: 20px;            /* 内容区域距离下方密码区域的间距 */
+            word-wrap: break-word;          /* 允许长单词换行 */
+            white-space: pre-wrap;          /* 保留空白符和换行符 */
         }
-         .tooltip p {
-             margin: 0 0 10px 0; /* 段落下边距 */
-             line-height: 1.5; /* 行高 */
-         }
+        .tooltip p {
+            margin: 0 0 10px;               /* 段落间距 */
+            line-height: 1.5;               /* 行高 */
+        }
+
+        /* --- 密码表单样式 --- */
+        .password-form {
+            position: sticky;               /* 相对于 tooltip 滚动区域固定在底部 */
+            bottom: 0;                      /* 固定在底部 */
+            background: #1e1e1e;            /* 背景色与 tooltip 一致 */
+            padding: 10px 0 0;              /* 顶部内边距 */
+            margin: 0;                      /* 无外边距 */
+            width: 100%;                    /* 宽度占满 tooltip */
+            box-sizing: border-box;         /* 内边距包含在宽度内 */
+        }
+        .password-form input[type=text] {
+            width: calc(100% - 18px);       /* 宽度计算 (考虑内边距和边框) */
+            padding: 8px;                   /* 输入框内边距 */
+            margin-bottom: 5px;             /* 输入框下方间距 */
+            box-sizing: border-box;         /* 内边距和边框包含在宽度内 */
+            background: #333;               /* 输入框背景 (深灰色) */
+            color: #fff;                    /* 输入框文字颜色 (白色) */
+            border: 1px solid #666;         /* 输入框边框 (灰色) */
+            display: block;                 /* 块级元素，占满一行 */
+        }
+        .password-form button {
+            width: 100%;                    /* 按钮宽度占满 */
+            padding: 8px;                   /* 按钮内边距 */
+            background: #4caf50;            /* 按钮背景色 (绿色) */
+            color: #fff;                    /* 按钮文字颜色 (白色) */
+            border: none;                   /* 无边框 */
+            cursor: pointer;                /* 鼠标指针 */
+            display: block;                 /* 块级元素 */
+            transition: background .3s ease;/* 背景色过渡 */
+        }
+        .password-form button:not(:disabled):hover {
+            background: #45a049;            /* 鼠标悬停时的背景色 (深绿色) */
+        }
+        .password-form button:disabled {
+            background: #666;               /* 禁用时背景色 (灰色) */
+            cursor: not-allowed;            /* 禁用时鼠标样式 */
+        }
+
+        /* --- 错误消息样式 --- */
+        .error {
+            color: red;                     /* 错误消息颜色 (红色) */
+            text-align: center;             /* 文本居中 */
+            margin-top: 5px;                /* 顶部外边距 */
+            font-size: .9em;                /* 字体稍小 */
+            min-height: 1.2em;              /* 最小高度，防止布局跳动 */
+        }
+
+        /* --- 冷却激活时的视觉样式 --- */
+        .password-form.cooldown-active input[type=text],
+        .password-form.cooldown-active button {
+            /* 使用 !important 确保覆盖默认样式 */
+            background-color: #555 !important; /* 更深的灰色背景 */
+            border-color: #777 !important;     /* 更深的灰色边框 */
+            color: #aaa !important;            /* 灰白色文字 */
+            cursor: not-allowed !important;    /* 禁用鼠标样式 */
+            opacity: 0.7 !important;           /* 轻微透明 */
+        }
+        .password-form.cooldown-active button:hover {
+             /* 覆盖悬停效果，保持禁用状态的颜色 */
+            background-color: #555 !important;
+        }
     </style>
 </head>
 <body>
-
-    <!-- --- 背景音乐设置 --- -->
-    <!-- TODO: 将 'path/to/your/background-music.mp3' 替换为你的音乐文件路径 -->
-    <audio id="backgroundAudio" autoplay loop>
+    <!-- === 背景音乐标签 === -->
+    <audio id="backgroundAudio" loop> <!-- 移除 autoplay，由 JS 控制 -->
         <source src="./mp3/main.mp3" type="audio/mpeg">
-        <!-- 可以添加其他格式的音频文件作为备用 -->
-        <!-- <source src="path/to/your/background-music.ogg" type="audio/ogg"> -->
         您的浏览器不支持音频元素。
     </audio>
-    <!-- --- 背景音乐设置结束 --- -->
+    <!-- === 音频结束 === -->
 
     <div class="ring-container">
         <!-- 主圆环 -->
         <div class="main-ring"></div>
         <!-- 进度环 SVG -->
         <svg class="progress-svg" viewBox="0 0 600 600">
-            <!-- SVG 内部坐标系范围，圆心在 300, 300 -->
-            <!-- 段路径，由JavaScript动态生成并控制显隐和动画 -->
-            <!-- 将段路径放在点的前面，确保点绘制在路径上方 -->
-            <path id="segmentPath-0-1" class="segment-path"/>
-            <path id="segmentPath-1-2" class="segment-path"/>
-            <path id="segmentPath-2-3" class="segment-path"/>
-            <path id="segmentPath-3-4" class="segment-path"/>
-            <path id="segmentPath-4-5" class="segment-path"/>
-            <!-- 新增从节点5到节点0的路径 -->
-            <path id="segmentPath-5-0" class="segment-path"/>
-
+            <!-- 定义 6 个路径段 -->
+            <path id="segmentPath-0-1" class="segment-path"/> <path id="segmentPath-1-2" class="segment-path"/>
+            <path id="segmentPath-2-3" class="segment-path"/> <path id="segmentPath-3-4" class="segment-path"/>
+            <path id="segmentPath-4-5" class="segment-path"/> <path id="segmentPath-5-0" class="segment-path"/>
             <!-- 移动的点 -->
             <circle id="travelingDot" class="traveling-dot"/>
         </svg>
         <!-- 节点组 -->
         <div class="nodes">
-            <!-- 节点的位置和 transform 将通过 JavaScript 精确计算并设置 style -->
-            <!-- data-index 对应解锁顺序： 0(菱形) -> 1 -> 2 -> 3 -> 4 -> 5 (正方形) -->
-            <!-- HTML 元素的顺序应该与 data-index 一致，方便 JS 获取 -->
-
-            <!-- data-index 0: 菱形, 底部 (解锁顺序起点) -->
-            <div class="node diamond" data-index="0"></div>
-
-             <!-- data-index 1: 正方形, 左下 (解锁顺序 1) -->
-            <div class="node square" data-index="1"></div>
-
-             <!-- data-index 2: 正方形, 左上 (解锁顺序 2) -->
-            <div class="node square" data-index="2"></div>
-
-             <!-- data-index 3: 正方形, 顶部 (解锁顺序 3) -->
-            <div class="node square" data-index="3"></div>
-
-             <!-- data-index 4: 正方形, 右上 (解锁顺序 4) -->
-            <div class="node square" data-index="4"></div>
-
-             <!-- data-index 5: 正方形, 右下 (解锁顺序 5) -->
-            <div class="node square" data-index="5"></div>
-
-            <!-- 中间节点 (索引6) -->
-            <div class="node center-node" id="centerNode" data-index="6">
-                中心
-            </div>
+            <!-- 定义 6 个环形节点和 1 个中心节点 -->
+            <div class="node diamond" data-index="0"></div> <div class="node square" data-index="1"></div>
+            <div class="node square" data-index="2"></div> <div class="node square" data-index="3"></div>
+            <div class="node square" data-index="4"></div> <div class="node square" data-index="5"></div>
+            <div class="node center-node" id="centerNode" data-index="6">中心</div>
         </div>
     </div>
+
     <!-- 提示框 -->
     <div class="tooltip" id="tooltip">
+        <!-- 节点说明内容区域 -->
         <div id="tooltipContent">这里是节点说明文字...</div>
+        <!-- 密码输入表单区域 -->
         <div class="password-form" id="passwordForm">
-            <!-- 密码输入框，type="text" 以显示输入字符 -->
             <input type="text" id="passwordInput" placeholder="请输入密码">
             <button id="unlockButton">解锁</button>
-            <div class="error" id="errorMsg"></div>
+            <div class="error" id="errorMsg"></div> <!-- 显示错误或冷却信息 -->
         </div>
     </div>
+
     <script>
         // ========== 可配置参数 ==========
-
-        // 节点角度定义 (Math/JS 角度: 0=右, 90=下, 180=左, 270=上)
-        // 顺序与解锁顺序一致： 0(底部菱形) -> 1(左下) -> 2(左上) -> 3(顶部) -> 4(右上) -> 5(右下)
-        const nodeAngles = [90, 150, 210, 270, 330, 30]; // 6个环形节点角度
-
-        const nodeDescriptions = [
-            "这是位于最下方的菱形节点，它是整个系统的起点。\n它无需密码即可查看说明。",   // 节点0 (菱形, 底部)
-            "这是解锁序列的第一个正方形节点 (左下)。\n解锁它将开启系统。\n提示：密码是 node1pass", // 节点1 (左下)
-            "这是解锁序列的第二个正方形节点 (左上)。\n提示：密码是 node2pass",       // 节点2 (左上)
-            "这是解锁序列的第三个正方形节点 (顶部)。\n提示：密码是 node3pass",       // 节点3 (顶部)
-            "这是解锁序列的第四个正方形节点 (右上)。\n提示：密码是 node4pass",       // 节点4 (右上)
-            "这是解锁序列的第五个正方形节点 (右下)。\n解锁它将开启中心节点。\n提示：密码是 node5pass", // 节点5 (右下)
-            "恭喜！你已解锁所有环形节点。这是中心节点。\n在所有环形节点解锁后，输入密码即可访问下一阶段。\n提示：密码是 centerpass"  // 节点6 (中心)
+        const API_BASE_URL = 'http://111.170.11.158:30047/proxy/3000'; // 后端 API 基础 URL
+        const nodeAngles = [90, 150, 210, 270, 330, 30]; // 各节点在圆环上的角度
+        const nodeDescriptions = [ // 各节点对应的说明文字
+            "这是位于最下方的菱形节点，它是整个系统的起点。\n它无需密码即可查看说明。", // 节点 0
+            "这是解锁序列的第一个正方形节点 (左下)。\n解锁它将开启系统。\n提示：后端密码是 NODE1_PASS", // 节点 1
+            "这是解锁序列的第二个正方形节点 (左上)。\n提示：后端密码是 NODE2_PASS", // 节点 2
+            "这是解锁序列的第三个正方形节点 (顶部)。\n提示：后端密码是 NODE3_PASS", // 节点 3
+            "这是解锁序列的第四个正方形节点 (右上)。\n提示：后端密码是 NODE4_PASS", // 节点 4
+            "这是解锁序列的第五个正方形节点 (右下)。\n解锁它将开启中心节点。\n提示：后端密码是 NODE5_PASS", // 节点 5
+            "恭喜！你已解锁所有环形节点，中心节点已启用。\n点击此中心节点即可进入下一阶段。" // 节点 6 (中心)
         ];
-        const nodePasswords = [
-            "",                     // 节点0 (菱形) 无需密码解锁
-            "node1pass",            // 节点1 (左下) 密码
-            "node2pass",            // 节点2 (左上) 密码
-            "node3pass",            // 节点3 (顶部) 密码
-            "node4pass",            // 4 (右上) 密码
-            "node5pass",            // 5 (右下) 密码
-            "centerpass"            // 节点6 (中心) 密码
-        ];
-
-        const animationDuration = 1000; // 单段动画时长 (毫秒)
-        const fullCircleSegmentDuration = 1000; // 解锁节点5时每个路径段的动画时长 (4->5 and 5->0)
-        const cooldownDuration = 5; // 密码错误后的冷却时长 (秒)
-
+        const animationDuration = 1000; // 单个路径段动画时长 (毫秒)
+        const fullCircleSegmentDuration = 1000; // 闭合圆环动画时长 (毫秒)
+        const NEXT_PAGE_URL = 'next.html'; // 点击中心节点后跳转的页面
         // ========== 配置结束 ==========
 
-        // 获取DOM元素
+        // --- 获取 DOM 元素 ---
         const nodes = document.querySelectorAll('.node');
         const tooltip = document.getElementById('tooltip');
         const tooltipContent = document.getElementById('tooltipContent');
         const passwordForm = document.getElementById('passwordForm');
-        const passwordInput = document.getElementById('passwordInput'); // 已经是 type="text"
+        const passwordInput = document.getElementById('passwordInput');
         const unlockButton = document.getElementById('unlockButton');
         const errorMsg = document.getElementById('errorMsg');
         const centerNode = document.getElementById('centerNode');
         const travelingDot = document.getElementById('travelingDot');
-        const audioElement = document.getElementById('backgroundAudio'); // 获取音频元素
-
+        const audioElement = document.getElementById('backgroundAudio');
         const segmentPaths = [];
-        for(let i = 0; i < 6; i++) { // 0->1, 1->2, 2->3, 3->4, 4->5, 5->0
-            let start = i;
-            let end = (i + 1) % 6;
-            segmentPaths.push(document.getElementById(`segmentPath-${start}-${end}`));
+        for (let i = 0; i < 6; i++) {
+            segmentPaths.push(document.getElementById(`segmentPath-${i}-${(i + 1) % 6}`));
         }
 
-        // unlockedNodes 数组的索引对应节点 0-5
-        let unlockedNodes = [true, false, false, false, false, false]; // 节点0 默认已解锁
-        let isCenterEnabled = false; // 中心节点默认锁定
-        let currentNodeIndex = null; // 当前选中的节点索引 (0-6)
-
-        // 冷却状态变量
-        let isCoolingDown = false;
-        let remainingCooldownTime = 0; // 用于倒计时显示
-        let cooldownTimerId = null; // 用于存储 setInterval 的 ID
-
-        const radius = 300; // 圆环的半径
-        const containerSize = 600; // ring-container 的宽度/高度
-        const circleCenterX = containerSize / 2; // 圆环中心 X 坐标
-        const circleCenterY = containerSize / 2; // 圆环中心 Y 坐标
-
+        // --- 状态变量 ---
+        let unlockedNodes = [true, false, false, false, false, false]; // 节点解锁状态
+        let isCenterEnabled = false; // 中心节点是否启用
+        let currentNodeIndex = null; // 当前交互的节点索引
+        const radius = 298; // 圆环半径
+        const containerSize = 600; // 容器大小
+        const circleCenterX = containerSize / 2; // 圆心 X
+        const circleCenterY = containerSize / 2; // 圆心 Y
+        let activeCooldownTimer = null; // 冷却倒计时 interval ID
+        let activeCooldownTimeout = null; // 冷却结束 timeout ID
 
         // --- 初始化设置 ---
         positionNodes();
         createSegmentPaths();
-        // 初始化时将节点0标记为解锁状态的视觉效果
         const startNodeElement = document.querySelector('.node[data-index="0"]');
-        if (startNodeElement) { // 节点0始终是菱形，无需检查 class
-             startNodeElement.classList.add('unlocked');
-        }
+        if (startNodeElement) startNodeElement.classList.add('unlocked');
 
+        // --- 函数定义 ---
 
+        /** 计算节点 SVG 坐标 */
         function calculateNodeSvgPosition(angleDeg) {
-             const angleRad = angleDeg * Math.PI / 180;
-             const nodeX = circleCenterX + radius * Math.cos(angleRad);
-             const nodeY = circleCenterY + radius * Math.sin(angleRad);
-             return { x: nodeX, y: nodeY };
+            const angleRad = angleDeg * Math.PI / 180;
+            return {
+                x: circleCenterX + radius * Math.cos(angleRad),
+                y: circleCenterY + radius * Math.sin(angleRad)
+            };
         }
 
+        /** 定位所有节点 */
         function positionNodes() {
             nodes.forEach((node) => {
                 const index = parseInt(node.dataset.index);
-                if (index === 6) {
+                if (index === 6) { // 中心节点
                     node.style.left = '50%';
                     node.style.top = '50%';
                     node.style.transform = 'translate(-50%, -50%)';
-                    return;
+                } else { // 环形节点
+                    const angleDeg = nodeAngles[index];
+                    const svgPos = calculateNodeSvgPosition(angleDeg);
+                    node.style.top = `${svgPos.y}px`;
+                    node.style.left = `${svgPos.x}px`;
+                    let transform = 'translate(-50%, -50%)';
+                    if (node.classList.contains('diamond')) transform += ' rotate(45deg)';
+                    node.style.transform = transform;
                 }
-                const angleDeg = nodeAngles[index];
-                const svgPos = calculateNodeSvgPosition(angleDeg);
-                node.style.top = `${svgPos.y}px`;
-                node.style.left = `${svgPos.x}px`;
-                // 节点自身的中心需要对齐到计算出的位置，
-                // transform: translate(-50%, -50%) 是为了将元素的中心点而不是左上角定位到指定坐标。
-                // 菱形需要额外旋转45度。
-                let transform = 'translate(-50%, -50%)';
-                if (node.classList.contains('diamond')) {
-                     transform += ' rotate(45deg)';
-                }
-                 node.style.transform = transform;
-
             });
         }
 
+        /** 创建 SVG 路径 */
         function createSegmentPaths() {
-             for (let i = 0; i < 6; i++) {
-                 let startNodeIndex = i;
-                 let endNodeIndex = (i + 1) % 6; // 最后一个节点 (5) 连接回节点0
-                 const startPos = calculateNodeSvgPosition(nodeAngles[startNodeIndex]);
-                 const endPos = calculateNodeSvgPosition(nodeAngles[endNodeIndex]);
-
-                 // 判断是小弧还是大弧：
-                 // 如果角度差小于180度 (PI 弧度)，用小弧 (sweep-flag 0)。
-                 // 如果角度差大于等于180度，用大弧 (sweep-flag 1)。
-                 // 对于圆上的连续节点，通常是小弧。这里我们是顺时针连接，sweep-flag 1 确保顺时针画弧。
-                 // arc-flag 0 确保是小弧 (角度差 < 180)，除非起点和终点重合。
-                 // 但更简单的做法是固定sweep-flag为1（顺时针）和large-arc-flag为0（小弧），因为我们的节点分布保证了每段小于180度。
-                 const largeArcFlag = 0; // 小弧
-                 const sweepFlag = 1; // 顺时针
-
-                 const pathData = `M ${startPos.x} ${startPos.y} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${endPos.x} ${endPos.y}`;
-                 const pathElement = segmentPaths[i];
-                 if (pathElement) {
-                     pathElement.setAttribute('d', pathData);
-                     const pathLength = pathElement.getTotalLength();
-                     pathElement.style.strokeDasharray = pathLength;
-                     pathElement.style.strokeDashoffset = pathLength;
-                     pathElement.style.opacity = 0; // 初始隐藏路径
-                 }
-             }
+            for (let i = 0; i < 6; i++) {
+                const startPos = calculateNodeSvgPosition(nodeAngles[i]);
+                const endPos = calculateNodeSvgPosition(nodeAngles[(i + 1) % 6]);
+                const pathData = `M ${startPos.x} ${startPos.y} A ${radius} ${radius} 0 0 1 ${endPos.x} ${endPos.y}`;
+                const pathElement = segmentPaths[i];
+                if (pathElement) {
+                    pathElement.setAttribute('d', pathData);
+                    const pathLength = pathElement.getTotalLength();
+                    pathElement.style.strokeDasharray = pathLength;
+                    pathElement.style.strokeDashoffset = pathLength;
+                    pathElement.style.opacity = 0;
+                }
+            }
         }
 
-
-        // 结束冷却状态，恢复输入
-        function endCooldown() {
-            isCoolingDown = false;
+        /** 清理冷却状态 */
+        function clearCooldownState(forceClearMessage = false) {
+            if (activeCooldownTimer) clearInterval(activeCooldownTimer);
+            if (activeCooldownTimeout) clearTimeout(activeCooldownTimeout);
+            activeCooldownTimer = null;
+            activeCooldownTimeout = null;
+            passwordForm.classList.remove('cooldown-active');
             passwordInput.disabled = false;
             unlockButton.disabled = false;
-            errorMsg.textContent = ''; // 清空错误信息
-            passwordInput.value = ''; // 清空密码输入框
-            // 恢复按钮文本到默认或根据当前节点状态
-            unlockButton.textContent = currentNodeIndex === 6 ? '进入' : '解锁';
-            console.log("Cooldown finished.");
-            // 如果提示框仍然显示，确保输入框和按钮状态正确 (redundant but safe)
-            if (tooltip.style.display === 'block' && passwordForm.style.display !== 'none') {
-                 passwordInput.disabled = false;
-                 unlockButton.disabled = false;
-                 unlockButton.textContent = currentNodeIndex === 6 ? '进入' : '解锁';
-            }
+            unlockButton.textContent = '解锁';
+            if (forceClearMessage) errorMsg.textContent = '';
         }
 
-        // 开始冷却倒计时
-        function startCooldown() {
-            isCoolingDown = true;
-            passwordInput.disabled = true; // 禁用输入框
-            unlockButton.disabled = true; // 禁用按钮
-            remainingCooldownTime = cooldownDuration; // 设置初始倒计时时间
-            unlockButton.textContent = '请等待...'; // 按钮显示等待提示
-
-            // 清除任何现有的计时器，防止重复
-            if (cooldownTimerId !== null) {
-                clearInterval(cooldownTimerId);
-                cooldownTimerId = null; // 重置 ID
-            }
-
-            // 启动每秒更新的计时器
-            cooldownTimerId = setInterval(() => {
-                remainingCooldownTime--;
-                if (remainingCooldownTime > 0) {
-                    errorMsg.textContent = `密钥错误！请等待 ${remainingCooldownTime}秒...`;
-                } else {
-                    clearInterval(cooldownTimerId); // 停止计时器
-                    cooldownTimerId = null; // 重置 ID
-                    endCooldown(); // 调用结束冷却函数
-                }
-            }, 1000); // 每1000毫秒 (1秒) 执行一次
-             // 显示初始错误信息（在第一次倒计时更新前）
-             errorMsg.textContent = `密钥错误！请等待 ${remainingCooldownTime}秒...`;
-        }
-
-
-        // 显示提示框
-        function showTooltip(needsPassword) {
-            if (currentNodeIndex === null) return;
-
+        /** 显示提示框 */
+        function showTooltip(nodeIndexToShow, needsPassword, cooldownMessage = null, remainingSeconds = 0) {
+            if (nodeIndexToShow === null) return;
             tooltip.style.display = 'block';
-            tooltipContent.textContent = nodeDescriptions[currentNodeIndex];
-            passwordInput.value = ''; // 始终清空密码输入框的值
-            errorMsg.textContent = ''; // 默认清空错误信息
+            tooltipContent.textContent = nodeDescriptions[nodeIndexToShow];
+            passwordInput.value = '';
+            clearCooldownState(true); // 总是先清理
 
-            if (needsPassword) {
+            if (cooldownMessage) { // 情况1: 传入了冷却信息
                 passwordForm.style.display = 'block';
-                if (isCoolingDown) {
-                    // 如果当前正在冷却中，显示冷却信息和剩余时间
-                    passwordInput.disabled = true;
-                    unlockButton.disabled = true;
-                    unlockButton.textContent = '请等待...';
-                    // 错误信息由 startCooldown 的计时器负责更新
-                    errorMsg.textContent = `密钥错误！请等待 ${remainingCooldownTime}秒...`;
-                } else {
-                    // 不在冷却中，启用输入和按钮
-                    passwordInput.disabled = false;
-                    unlockButton.disabled = false;
-                    unlockButton.textContent = currentNodeIndex === 6 ? '进入' : '解锁';
-                    errorMsg.textContent = ''; // 确保没有残留的冷却信息
-                }
-            } else {
-                passwordForm.style.display = 'none'; // 无需密码则隐藏表单
-                 // 如果之前在冷却，隐藏表单时也停止计时器（可选，取决于需求）
-                 if (cooldownTimerId !== null) {
-                     clearInterval(cooldownTimerId);
-                     cooldownTimerId = null;
-                     isCoolingDown = false; // 重置状态
-                     remainingCooldownTime = 0; // 重置时间
-                 }
+                passwordForm.classList.add('cooldown-active');
+                passwordInput.disabled = true;
+                unlockButton.disabled = true;
+                unlockButton.textContent = '请等待...';
+                errorMsg.textContent = cooldownMessage; // 显示传入的冷却消息
+                startFrontendCooldownTimers(remainingSeconds, nodeIndexToShow); // 启动前端计时器
+            } else if (needsPassword) { // 情况2: 需要密码输入
+                passwordForm.style.display = 'block';
+            } else { // 情况3: 只显示信息
+                passwordForm.style.display = 'none';
             }
-
-            tooltip.scrollTop = 0; // 滚动到提示框顶部
+            tooltip.scrollTop = 0;
         }
 
-        // 检查密码并处理解锁
-        function checkPassword() {
-            // 如果正在冷却，阻止新的尝试
-            if (isCoolingDown) {
-                console.log("System is in cooldown. Please wait.");
-                return;
-            }
+        /** 启动前端冷却计时器 */
+        function startFrontendCooldownTimers(remaining, indexToCheck) {
+             passwordInput.disabled = true;
+             unlockButton.disabled = true;
+             passwordForm.classList.add('cooldown-active');
+             unlockButton.textContent = '请等待...';
 
-            if (currentNodeIndex === null) return;
+             let countdown = Math.ceil(remaining); // 向上取整，确保显示完整秒数
 
+             // 清除旧计时器
+             if (activeCooldownTimer) clearInterval(activeCooldownTimer);
+             if (activeCooldownTimeout) clearTimeout(activeCooldownTimeout);
+
+             // --- 更新显示 ---
+             const updateTimerDisplay = () => {
+                  if (tooltip.style.display === 'block' && passwordForm.style.display === 'block' && currentNodeIndex === indexToCheck) {
+                     if (countdown > 0) {
+                         errorMsg.textContent = `请求过于频繁，请等待 ${countdown} 秒...`;
+                         countdown--;
+                     } else {
+                         errorMsg.textContent = `请稍候...`; // 倒计时结束的临时消息
+                         if(activeCooldownTimer) clearInterval(activeCooldownTimer);
+                         activeCooldownTimer = null;
+                     }
+                 } else { // tooltip 状态改变，停止计时器
+                     if(activeCooldownTimer) clearInterval(activeCooldownTimer);
+                     activeCooldownTimer = null;
+                 }
+             };
+
+             updateTimerDisplay(); // 立即显示一次
+             activeCooldownTimer = setInterval(updateTimerDisplay, 1000); // 每秒更新
+
+             // --- 冷却结束后恢复 ---
+             activeCooldownTimeout = setTimeout(() => {
+                 activeCooldownTimer = null; // 清理 interval ID
+                  if (tooltip.style.display === 'block' && passwordForm.style.display === 'block' && currentNodeIndex === indexToCheck) {
+                     console.log(`节点 ${indexToCheck} 前端冷却结束。`);
+                     clearCooldownState(false); // 清理状态，不强制清除消息
+                     errorMsg.textContent = ''; // 明确清除冷却消息
+                 } else {
+                      console.log(`服务器冷却结束但 tooltip 状态改变。`);
+                      clearCooldownState(true); // 清理状态和消息
+                 }
+                 activeCooldownTimeout = null; // 清理 timeout ID
+             }, remaining * 1000); // 使用原始的 remaining 时间来设置 timeout
+        }
+
+        /** 异步检查密码 */
+        async function checkPassword() {
+            if (currentNodeIndex === null || currentNodeIndex < 1 || currentNodeIndex > 5) return;
             const input = passwordInput.value;
+            const indexToCheck = currentNodeIndex;
 
-            if (input === nodePasswords[currentNodeIndex]) {
-                // --- 密码正确 ---
-                console.log(`Password correct for node ${currentNodeIndex}.`);
-                errorMsg.textContent = ''; // 清空错误信息
-                tooltip.style.display = 'none'; // 隐藏提示框
+            unlockButton.disabled = true;
+            passwordInput.disabled = true;
+            unlockButton.textContent = '验证中...';
+            errorMsg.textContent = '';
+            passwordForm.classList.remove('cooldown-active');
+            clearCooldownState(false); // 清理计时器但不清消息
 
-                // 如果之前在冷却，正确输入后停止计时器并清理状态
-                if (cooldownTimerId !== null) {
-                    clearInterval(cooldownTimerId);
-                    cooldownTimerId = null;
-                    isCoolingDown = false;
-                    remainingCooldownTime = 0;
-                    passwordInput.disabled = false;
-                    unlockButton.disabled = false;
-                }
+            try {
+                const response = await fetch(API_BASE_URL + '/check-password', { // 使用指定 API
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nodeIndex: indexToCheck, password: input }),
+                 });
+                let data = {};
+                try { data = await response.json(); } catch (e) { data = { message: `服务器响应无效 (状态: ${response.status})` }; }
 
-
-                if (currentNodeIndex >= 1 && currentNodeIndex <= 5) {
-                    // 解锁环形节点 (1-5)
-                    if (!unlockedNodes[currentNodeIndex]) {
-                         unlockedNodes[currentNodeIndex] = true;
-                         const targetNode = document.querySelector(`.node[data-index="${currentNodeIndex}"]`);
-                         const segmentIndex = currentNodeIndex - 1; // Segment index is currentNodeIndex - 1 for nodes 1-5
-
-                         if (currentNodeIndex === 5) {
-                             // 特殊处理节点5的解锁动画：路径4->5 -> 节点5变蓝 -> 路径5->0 -> 整个圆环高亮
-                             animatePathSegment(segmentIndex, fullCircleSegmentDuration, () => { // 动画路径 4->5
-                                  // 动画完成后，节点5变蓝
-                                  if (targetNode) {
-                                       targetNode.classList.add('unlocked');
-                                  }
-                                  console.log("Node 5 unlocked, starting segment 5->0 animation.");
-                                  // 接着动画路径 5->0
-                                  animatePathSegment(5, fullCircleSegmentDuration, () => { // Segment 5 is 5->0
-                                      // 路径 5->0 动画完成后，所有路径高亮并检查中心节点
-                                      console.log("Segment 5->0 animation complete. Highlighting all paths.");
-                                      segmentPaths.forEach(pathElement => {
-                                          pathElement.style.opacity = 1; // 使所有路径完全可见
-                                          pathElement.style.stroke = '#66ccff'; // 确保颜色正确
-                                          pathElement.style.strokeDashoffset = 0; // 确保所有路径看起来完整
-                                      });
-
-                                      // 检查是否所有环形节点都已解锁
-                                      let allRingNodesUnlocked = true;
-                                      for(let i = 1; i <= 5; i++) {
-                                          if (!unlockedNodes[i]) {
-                                              allRingNodesUnlocked = false;
-                                              break;
-                                          }
-                                      }
-                                      if (allRingNodesUnlocked) {
-                                          enableCenterNode();
-                                      }
-                                  });
+                if (response.ok && data.correct) { // 密码正确
+                    console.log(`节点 ${indexToCheck} 密码正确。`);
+                    tooltip.style.display = 'none';
+                    clearCooldownState(true);
+                     if (!unlockedNodes[indexToCheck]) {
+                         unlockedNodes[indexToCheck] = true;
+                         const targetNode = document.querySelector(`.node[data-index="${indexToCheck}"]`);
+                         const segmentIndex = indexToCheck - 1;
+                         if (indexToCheck === 5) { // 解锁最后一个节点
+                             animatePathSegment(segmentIndex, fullCircleSegmentDuration, () => {
+                                 if (targetNode) targetNode.classList.add('unlocked');
+                                 animatePathSegment(5, fullCircleSegmentDuration, () => {
+                                     segmentPaths.forEach(p => { p.style.opacity = 1; p.style.stroke = '#6cf'; p.style.strokeDashoffset = 0; });
+                                     if (unlockedNodes.slice(1).every(Boolean)) enableCenterNode();
+                                 });
                              });
-
-                         } else {
-                             // 解锁节点 1 到 4 的通用流程：动画路径 -> 节点变蓝
+                         } else { // 解锁中间节点
                              animatePathSegment(segmentIndex, animationDuration, () => {
-                                  // 动画完成后，节点变蓝
-                                  if (targetNode) {
-                                       targetNode.classList.add('unlocked');
-                                  }
+                                 if (targetNode) targetNode.classList.add('unlocked');
                              });
                          }
-                    } else {
-                        // 节点已解锁但用户再次点击并输入正确密码 (不进行解锁或动画，只关闭提示框)
-                         console.log(`Node ${currentNodeIndex} already unlocked.`);
                     }
-                } else if (currentNodeIndex === 6 && isCenterEnabled) {
-                    // 已启用中心节点且密码正确
-                    console.log("Center node unlocked!");
-                    alert("中心节点解锁成功！即将进入下一阶段...");
-                    // window.location.href = 'next.html'; // 可以在这里跳转
+                    currentNodeIndex = null;
+                } else { // 密码错误或冷却
+                    passwordInput.value = '';
+                    if (data.cooldown && data.remaining > 0) { // 后端指示冷却
+                        errorMsg.textContent = data.message || `密码错误！请等待 ${Math.ceil(data.remaining)} 秒...`;
+                        startFrontendCooldownTimers(data.remaining, indexToCheck);
+                    } else { // 普通错误
+                        errorMsg.textContent = data.message || '密码错误！';
+                        clearCooldownState(false); // 重新启用输入
+                    }
                 }
-
-                 currentNodeIndex = null; // 操作成功后重置当前节点索引
-            } else {
-                // --- 密码错误 ---
-                console.log("Password incorrect.");
-                passwordInput.value = ''; // 清空输入框
-                startCooldown(); // 启动冷却机制和倒计时显示
+            } catch (error) { // fetch 错误
+                console.error('检查密码时出错:', error);
+                errorMsg.textContent = '验证时发生网络错误，请稍后重试。';
+                clearCooldownState(false); // 重新启用输入
             }
         }
 
-        // 动画函数：移动点沿着路径移动并显示路径
-        // segmentIndex: 要动画的路径段的索引 (0-5)
-        // duration: 动画时长 (毫秒)
-        // onComplete: 动画完成后的回调函数 (可选)
+        /** 动画 SVG 路径 */
         function animatePathSegment(segmentIndex, duration, onComplete = null) {
             const pathElement = segmentPaths[segmentIndex];
-            if (!pathElement) {
-                 console.error(`Segment path with index ${segmentIndex} not found.`);
-                 if (onComplete) onComplete(); // 如果路径不存在，直接调用完成回调（如果存在）
-                 return;
-            }
-
+            if (!pathElement) { if (onComplete) onComplete(); return; }
             const pathLength = pathElement.getTotalLength();
-            pathElement.style.opacity = 1; // 使当前路径可见
+            pathElement.style.opacity = 1;
             pathElement.style.strokeDasharray = pathLength;
-            pathElement.style.strokeDashoffset = pathLength; // 初始隐藏路径
-
+            pathElement.style.strokeDashoffset = pathLength;
             const startPoint = pathElement.getPointAtLength(0);
             travelingDot.setAttribute('cx', startPoint.x);
             travelingDot.setAttribute('cy', startPoint.y);
-            travelingDot.style.display = 'block'; // 显示移动的点
-
+            travelingDot.style.display = 'block';
             let startTime = null;
-
             function step(timestamp) {
                 if (!startTime) startTime = timestamp;
                 const elapsed = timestamp - startTime;
-                const progress = Math.min(elapsed / duration, 1); // 0 to 1
-
+                const progress = Math.min(elapsed / duration, 1);
                 const currentLength = pathLength * progress;
                 const currentPoint = pathElement.getPointAtLength(currentLength);
-
                 travelingDot.setAttribute('cx', currentPoint.x);
                 travelingDot.setAttribute('cy', currentPoint.y);
-                pathElement.style.strokeDashoffset = pathLength - currentLength; // 动画路径
-
+                pathElement.style.strokeDashoffset = pathLength - currentLength;
                 if (progress < 1) {
                     requestAnimationFrame(step);
                 } else {
-                    // 动画完成
-                    pathElement.style.strokeDashoffset = 0; // 确保路径完全显示
-                    travelingDot.style.display = 'none'; // 隐藏移动的点
-
-                    if (onComplete) {
-                        onComplete(); // 执行完成回调
-                    }
+                    pathElement.style.strokeDashoffset = 0;
+                    travelingDot.style.display = 'none';
+                    if (onComplete) onComplete();
                 }
             }
             requestAnimationFrame(step);
         }
 
-        // 启用中心节点
+        /** 启用中心节点 */
         function enableCenterNode() {
-            isCenterEnabled = true;
-            centerNode.classList.add('enabled');
-            console.log("中心节点已解锁！");
-            // 可以选择在这里显示中心节点的说明，或者让用户点击后才能看
-            // currentNodeIndex = 6; // 设置当前节点为中心，以便下次点击显示正确信息
-            // showTooltip(true); // 显示中心节点说明 (包含进入按钮)
-        }
-
-        // --- 音频播放控制 ---
-        // 函数：在用户交互后尝试播放音频
-        let audioPlayed = false; // 标志变量，确保只尝试播放一次
-        function tryPlayAudio() {
-             // 如果音频元素不存在或者已经尝试播放过，则不再执行
-            if (!audioElement || audioPlayed) {
-                 return;
+            if (!isCenterEnabled) {
+                isCenterEnabled = true;
+                centerNode.classList.add('enabled');
+                console.log("中心节点已启用！");
             }
-
-            audioElement.play().then(() => {
-                // 播放成功
-                console.log("Audio playback started.");
-                audioPlayed = true; // 设置标志为 true
-                // 成功播放后，移除监听器，避免重复触发
-                document.removeEventListener('click', tryPlayAudio);
-                document.removeEventListener('keydown', tryPlayAudio); // 移除键盘监听
-            }).catch(error => {
-                // 播放失败 (例如，浏览器策略仍然阻止)
-                // 即使失败，也设置为已尝试，避免在某些情况下无限循环
-                // 但更安全的做法是只在成功时移除监听，以便后续交互能触发
-                // console.warn("Audio playback failed after interaction:", error);
-                // 移除监听器逻辑在这里应该取决于你希望失败后怎么办
-                // 如果希望每次点击都重试直到成功，则不移除监听
-                // 如果希望只在第一次成功后停止，则需要更复杂的逻辑
-                // 对于“任何地方点击一次播放”，失败了可能需要用户再次点击，所以不移除监听更好
-                // 暂时不移除，让后续点击有机会触发
-                console.warn("Attempted audio playback and it failed (likely browser policy). Waiting for another interaction if needed.");
-                // audioPlayed = true; // 如果失败了，不设置audioPlayed为true，让下一次点击可以重试
-            });
         }
 
-        // 在文档上监听点击事件，第一次点击将触发 tryPlayAudio
-        document.addEventListener('click', tryPlayAudio);
+        // --- 音频播放逻辑 ---
+        let audioPlayed = false;
+        function tryPlayAudio() {
+            if (!audioElement || audioPlayed) return;
+            const playPromise = audioElement.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    console.log("背景音频已开始播放。");
+                    audioPlayed = true;
+                    document.removeEventListener('click', tryPlayAudio);
+                    document.removeEventListener('keydown', tryPlayAudio);
+                }).catch(error => {
+                    console.warn("音频自动播放失败 (需要用户交互):", error.name, error.message);
+                });
+            }
+        }
 
-        // 也可以添加键盘按下事件，因为键盘交互也算作用户交互
-        document.addEventListener('keydown', tryPlayAudio);
+        // --- 事件监听器 ---
+        document.addEventListener('click', tryPlayAudio, { once: false });
+        document.addEventListener('keydown', tryPlayAudio, { once: false });
 
-
-        // --- 事件监听 ---
+        // --- 节点点击事件 ---
         nodes.forEach(node => {
             const index = parseInt(node.dataset.index);
-            node.addEventListener('click', (e) => {
-                 e.stopPropagation(); // 防止点击节点导致关闭提示框
-
-                 // 在处理节点逻辑前，先尝试播放音频（如果还没播放）
-                 tryPlayAudio();
-
-
-                 if (isCoolingDown) {
-                      console.log("System in cooldown, cannot interact with nodes.");
-                      return; // 冷却中阻止点击节点
-                 }
-
-                 // 如果当前节点不是本次点击的节点，则重置状态
-                 if (currentNodeIndex !== null && currentNodeIndex !== index) {
-                     tooltip.style.display = 'none';
-                     passwordInput.value = '';
-                     errorMsg.textContent = '';
-                 }
-                 currentNodeIndex = index; // 更新当前选中的节点索引
+            node.addEventListener('click', async (e) => { // 改为 async
+                 e.stopPropagation();
 
                  if (index === 6) { // 中心节点
-                     showTooltip(isCenterEnabled); // 已启用需要密码/进入，未启用只看说明
+                     if (isCenterEnabled) window.location.href = NEXT_PAGE_URL;
+                     else { currentNodeIndex = index; showTooltip(index, false); }
                      return;
                  }
 
-                 // 环形节点 (0-5)
-                 // 节点0不需要前置解锁，节点1-5需要前一个解锁
-                 if (index > 0 && !unlockedNodes[index - 1]) {
+                 // --- 环形节点 (0-5) ---
+                 if (tooltip.style.display === 'block' && passwordInput.disabled && currentNodeIndex !== index) {
+                     console.log("在冷却或验证期间阻止了节点切换。");
+                     return;
+                 }
+                 if (tooltip.style.display === 'block' && currentNodeIndex !== null && currentNodeIndex !== index) {
+                     tooltip.style.display = 'none';
+                     clearCooldownState(true);
+                 }
+
+                 currentNodeIndex = index;
+
+                 if (index > 0 && !unlockedNodes[index - 1]) { // 检查前置解锁
                      alert("请按顺序解锁前一个节点！");
-                     currentNodeIndex = null; // 阻止点击
-                     return;
+                     currentNodeIndex = null; tooltip.style.display = 'none'; clearCooldownState(true); return;
                  }
 
-                 // 如果节点已解锁 (节点0默认已解锁)，只显示信息
-                 if (unlockedNodes[index]) {
-                     showTooltip(false); // 不显示密码表单
+                 const needsPasswordCheck = index >= 1 && index <= 5 && !unlockedNodes[index];
+
+                 if (needsPasswordCheck) {
+                     // === 需要密码：先检查后端冷却状态 ===
+                     console.log(`节点 ${index} 被点击，正在检查后端冷却状态...`);
+                     node.style.cursor = 'wait'; // 等待光标
+                     errorMsg.textContent = '正在检查状态...'; // 提示用户
+                     tooltip.style.display = 'block'; // 先显示tooltip骨架
+                     passwordForm.style.display = 'none'; // 隐藏密码区
+                     tooltipContent.textContent = nodeDescriptions[index]; // 显示描述
+
+                     try {
+                         const response = await fetch(API_BASE_URL + '/check-cooldown'); // 使用指定 API (假设是 GET)
+                         if (!response.ok) throw new Error(`冷却状态检查失败: ${response.status}`);
+
+                         const cooldownStatus = await response.json();
+                         errorMsg.textContent = ''; // 清除"正在检查"消息
+
+                         if (cooldownStatus.cooldown && cooldownStatus.remaining > 0) {
+                             // --- 后端报告冷却中 ---
+                             console.log(`节点 ${index}: 后端报告冷却中 (${cooldownStatus.remaining}s 剩余). 显示冷却信息。`);
+                             showTooltip(index, false, `请求过于频繁，请等待 ${Math.ceil(cooldownStatus.remaining)} 秒...`, cooldownStatus.remaining);
+                         } else {
+                             // --- 不在冷却中 ---
+                              console.log(`节点 ${index}: 不在冷却中。显示密码输入提示。`);
+                             showTooltip(index, true); // 显示带密码框的 Tooltip
+                         }
+                     } catch (error) {
+                         // --- 预检请求失败 ---
+                         console.error("检查冷却状态时出错:", error);
+                         errorMsg.textContent = '无法检查节点状态，请稍后重试或直接尝试。'; // 保持错误信息
+                         // 允许用户尝试输入密码作为后备
+                         passwordForm.style.display = 'block';
+                         passwordInput.disabled = false;
+                         unlockButton.disabled = false;
+                         unlockButton.textContent = '解锁';
+                         passwordForm.classList.remove('cooldown-active');
+                     } finally {
+                         node.style.cursor = 'pointer'; // 恢复光标
+                     }
                  } else {
-                      // 节点未解锁，且前一个已解锁 (或当前是节点0)，显示密码表单 (节点0不需要密码)
-                      showTooltip(index >= 1 && index <= 5); // 节点1-5需要密码
+                      // --- 不需要密码 ---
+                      console.log(`节点 ${index} 被点击，仅显示信息。`);
+                      showTooltip(index, false); // 只显示信息
                  }
             });
         });
 
-        // 解锁按钮点击事件
+        // --- 解锁按钮点击 ---
         unlockButton.addEventListener('click', checkPassword);
 
-        // 密码输入框回车事件
+        // --- 密码框回车 ---
         passwordInput.addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
-                event.preventDefault(); // 阻止表单默认提交
-                checkPassword();
+            if (event.key === 'Enter' && !passwordInput.disabled) {
+                event.preventDefault(); checkPassword();
             }
         });
 
-        // 点击提示框外部区域关闭
+        // --- 点击外部关闭 tooltip ---
         document.addEventListener('click', (e) => {
-             // 只有当提示框显示，且点击目标不是提示框内部也不是节点时关闭
-             // 并且不在冷却状态时才关闭
-             if (tooltip.style.display === 'block' &&
-                 !e.target.closest('.tooltip') &&
-                 !e.target.closest('.node') &&
-                 !isCoolingDown) // 冷却中不允许通过点击外部关闭
-            {
-                 tooltip.style.display = 'none';
-                 currentNodeIndex = null;
-                 errorMsg.textContent = '';
-                 passwordInput.value = '';
+             if (tooltip.style.display === 'block' && !e.target.closest('.tooltip') && !e.target.closest('.node')) {
+                 if (!passwordInput.disabled) { // 仅在非冷却/验证时允许关闭
+                     tooltip.style.display = 'none'; currentNodeIndex = null; clearCooldownState(true);
+                 } else { console.log("在冷却/验证期间阻止了点击外部关闭 tooltip。"); }
             }
-             // tryPlayAudio 函数会在 document click 时被触发，这是预期的行为。
-             // 它内部有逻辑确保只在音频未播放时尝试。
         });
-
-        // 页面加载后初始化
-        positionNodes();
-        createSegmentPaths();
 
     </script>
 </body>

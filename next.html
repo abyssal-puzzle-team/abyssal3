@@ -1,24 +1,246 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>最终</title>
+    <title>最终阶段</title>
     <style>
-        body{
-            background-image: url('./img/nextground.jpeg');
-            background-size: cover; /* 使背景图片覆盖整个元素 */
-            background-repeat: no-repeat; /* 不重复背景图片 */
-            background-attachment: fixed; /* 背景图片固定，不随滚动条滚动 */
-            background-position: center; /* 背景图片居中显示 */
+        /* 样式部分保持不变 */
+        body {
+            margin: 0; padding: 0; background: #121212; color: #fff; font-family: Arial, sans-serif;
+            overflow: hidden; display: flex; justify-content: center; align-items: center; min-height: 100vh; flex-direction: column; /* 垂直居中内容 */
+            background-image: url('./img/nextground.jpeg'); /* 确保此路径相对于 next.html 正确 */
+            background-size: cover; background-repeat: no-repeat; background-attachment: fixed; background-position: center;
         }
-        h1{
-            width: auto;
+        h1 {
             color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
         }
+        /* 表单容器 */
+        .form-container {
+            background-color: rgba(30, 30, 30, 0.85); /* 半透明深色背景 */
+            padding: 30px 40px;
+            border-radius: 10px;
+            border: 1px solid #555;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            min-width: 300px; /* 保证最小宽度 */
+            max-width: 400px; /* 限制最大宽度 */
+        }
+        /* 输入框和按钮样式 (类似 index.html) */
+        .form-container input[type=text] {
+            width: 100%; /* 占据容器全部宽度 */
+            padding: 10px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            background: #333;
+            color: #fff;
+            border: 1px solid #666;
+            display: block;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        .form-container button {
+            width: 100%; /* 全部宽度 */
+            padding: 12px;
+            background: #4caf50;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            display: block;
+            border-radius: 4px;
+            font-size: 1.1em;
+            transition: background 0.3s ease;
+            margin-top: 10px; /* 按钮上方留白 */
+        }
+        .form-container button:not(:disabled):hover { background: #45a049; }
+        .form-container button:disabled { background: #666; cursor: not-allowed; }
+        /* 错误消息样式 */
+        .error {
+            color: red; text-align: center; margin-top: 15px; /* 错误信息上方更多空间 */
+            font-size: .9em; min-height: 1.2em; font-weight: bold;
+        }
+        /* 冷却激活时的视觉样式 */
+        .form-container.cooldown-active input[type=text],
+        .form-container.cooldown-active button {
+            background-color: #555 !important; border-color: #777 !important; color: #aaa !important;
+            cursor: not-allowed !important; opacity: 0.7 !important;
+        }
+        .form-container.cooldown-active button:hover { background-color: #555 !important; }
     </style>
 </head>
 <body>
-    
+    <h1>最终认证</h1>
+
+    <div class="form-container" id="passwordFormContainer">
+        <input type="text" id="passwordInput1" placeholder="请输入第一个密钥">
+        <input type="text" id="passwordInput2" placeholder="请输入第二个密钥">
+        <button id="submitButton">验证</button>
+        <div class="error" id="errorMsg"></div>
+    </div>
+
+    <script>
+        // 获取 DOM 元素
+        const formContainer = document.getElementById('passwordFormContainer');
+        const passwordInput1 = document.getElementById('passwordInput1');
+        const passwordInput2 = document.getElementById('passwordInput2');
+        const submitButton = document.getElementById('submitButton');
+        const errorMsg = document.getElementById('errorMsg');
+
+        // 用于存储冷却计时器的 ID
+        let activeCooldownTimer = null;     // Interval ID for countdown display
+        let activeCooldownTimeout = null;   // Timeout ID for re-enabling controls
+
+        // 函数：清理冷却状态（计时器、样式、禁用状态）
+        function clearCooldownState(forceClearMessage = false) {
+            // console.log("正在清理冷却状态..."); // 用于调试
+            if (activeCooldownTimer) { clearInterval(activeCooldownTimer); activeCooldownTimer = null; }
+            if (activeCooldownTimeout) { clearTimeout(activeCooldownTimeout); activeCooldownTimeout = null; }
+            formContainer.classList.remove('cooldown-active'); // 移除灰色样式
+            // 总是确保控件启用
+            passwordInput1.disabled = false;
+            passwordInput2.disabled = false;
+            submitButton.disabled = false;
+            submitButton.textContent = '验证'; // 恢复按钮文本
+            if (forceClearMessage) {
+                errorMsg.textContent = ''; // 如果需要，强制清除错误消息
+            }
+        }
+
+        // 函数：启动前端冷却相关的计时器和样式
+        function startFrontendCooldownTimers(remaining) {
+             // 确保控件被禁用并应用样式
+             passwordInput1.disabled = true;
+             passwordInput2.disabled = true;
+             submitButton.disabled = true;
+             formContainer.classList.add('cooldown-active'); // 应用灰色样式
+             submitButton.textContent = '请等待...'; // 更新按钮文本
+
+             // 动态更新剩余时间显示
+             let countdown = remaining;
+             if (activeCooldownTimer) clearInterval(activeCooldownTimer); // 清除可能存在的旧 interval
+             activeCooldownTimer = setInterval(() => {
+                 countdown--;
+                 // 仅当冷却样式仍然应用时才更新消息（防止状态不一致）
+                 if (formContainer.classList.contains('cooldown-active')) {
+                     if (countdown > 0) {
+                         errorMsg.textContent = `密码错误！请等待 ${countdown} 秒...`; // 更新倒计时
+                     } else {
+                         errorMsg.textContent = `请稍候...`; // 倒计时结束的临时消息
+                         clearInterval(activeCooldownTimer); activeCooldownTimer = null; // 停止 interval
+                     }
+                 } else {
+                     clearInterval(activeCooldownTimer); activeCooldownTimer = null; // 如果冷却样式被移除，也停止 interval
+                 }
+             }, 1000); // 每秒执行一次
+
+             // 使用 setTimeout 在总冷却时间结束后移除样式并启用控件
+             if (activeCooldownTimeout) clearTimeout(activeCooldownTimeout); // 清除可能存在的旧 timeout
+             activeCooldownTimeout = setTimeout(() => {
+                 activeCooldownTimer = null; // 确保 interval ID 已清除
+                 // 再次检查冷却样式是否还在（可能已被其他操作清除）
+                  if (formContainer.classList.contains('cooldown-active')) {
+                     console.log(`前端冷却结束。重新启用控件。`);
+                     clearCooldownState(false); // 清理状态，但不强制清除最后的消息
+                     errorMsg.textContent = ''; // 明确清除冷却消息
+                 } else {
+                     console.log(`服务器冷却时间到，但 UI 状态已改变。`);
+                     // 即使 UI 状态改变，也调用 clearCooldownState 以确保计时器等被清理
+                     clearCooldownState(true);
+                 }
+                 activeCooldownTimeout = null; // 清除 timeout ID
+             }, remaining * 1000); // 等待后端告知的总时间
+        }
+
+        // 函数：检查密码（调用后端 API）
+        async function checkPasswords() {
+            const pass1 = passwordInput1.value;
+            const pass2 = passwordInput2.value;
+
+            // 基础的客户端校验（可选）
+            if (!pass1 || !pass2) {
+                errorMsg.textContent = '请填写所有密钥字段。';
+                return;
+            }
+
+            // 在请求期间禁用界面元素
+            submitButton.disabled = true;
+            passwordInput1.disabled = true;
+            passwordInput2.disabled = true;
+            submitButton.textContent = '验证中...'; // 显示加载状态
+            errorMsg.textContent = ''; // 清除之前的错误信息
+            formContainer.classList.remove('cooldown-active'); // 清除可能残留的冷却样式
+
+            // 清理可能正在运行的旧计时器
+            if (activeCooldownTimer) clearInterval(activeCooldownTimer); activeCooldownTimer = null;
+            if (activeCooldownTimeout) clearTimeout(activeCooldownTimeout); activeCooldownTimeout = null;
+
+            try {
+                // 调用新的后端 API 端点
+                const response = await fetch('/check-next-passwords', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password_1: pass1, password_2: pass2 }), // 发送两个密码
+                });
+
+                let data = {}; // 准备接收 JSON 数据
+                try {
+                    data = await response.json(); // 尝试解析 JSON 响应
+                } catch (e) {
+                    // 如果 JSON 解析失败，构造一个错误对象
+                    data = { message: `服务器响应无效 (状态: ${response.status})` };
+                }
+
+                if (response.ok && data.correct) {
+                    // --- 密码正确 ---
+                    console.log("下一阶段密码正确！");
+                    clearCooldownState(true); // 完全清理状态和消息
+                    alert('验证成功！即将进入最终页面...'); // 临时的成功提示
+                    // window.location.href = '/final-page.html'; // 例如，跳转到最终页面
+
+                } else {
+                    // --- 密码错误 或 收到冷却信息 ---
+                    passwordInput1.value = ''; // 失败时清空输入框
+                    passwordInput2.value = '';
+
+                    if (data.cooldown && data.remaining > 0) {
+                        // --- 后端指示需要冷却 ---
+                         errorMsg.textContent = data.message || `密码错误！请等待 ${data.remaining} 秒...`; // 显示后端消息或默认冷却提示
+                         startFrontendCooldownTimers(data.remaining); // 启动前端的冷却处理（计时器、样式、禁用）
+                    } else {
+                        // --- 普通密码错误（无冷却）或其他错误 ---
+                        errorMsg.textContent = data.message || '密码错误！'; // 显示错误消息
+                        clearCooldownState(false); // 清理状态（启用控件），但保留错误消息
+                    }
+                }
+
+            } catch (error) {
+                // --- 网络请求 (fetch) 失败 ---
+                console.error("检查下一阶段密码时出错:", error);
+                errorMsg.textContent = '验证时发生网络错误，请稍后重试。';
+                clearCooldownState(false); // 清理状态（启用控件），保留错误消息
+            }
+        }
+
+        // --- 事件监听器 ---
+        // 提交按钮点击事件
+        submitButton.addEventListener('click', checkPasswords);
+
+        // 为两个密码输入框添加回车键监听
+        function handleKeyPress(event) {
+             // 仅当按钮未被禁用时（即非冷却/验证中），回车才有效
+             if (event.key === 'Enter' && !submitButton.disabled) {
+                event.preventDefault(); // 阻止默认的回车行为（如表单提交）
+                checkPasswords(); // 调用验证函数
+            }
+        }
+        passwordInput1.addEventListener('keypress', handleKeyPress);
+        passwordInput2.addEventListener('keypress', handleKeyPress);
+
+        // 页面加载时清理初始状态（以防浏览器使用缓存）
+        clearCooldownState(true);
+
+    </script>
 </body>
 </html>
