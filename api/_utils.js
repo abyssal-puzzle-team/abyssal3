@@ -10,7 +10,7 @@ const passwords = {
     3: process.env.NODE3_PASS,  // 节点 3 密码
     4: process.env.NODE4_PASS,  // 节点 4 密码
     5: process.env.NODE5_PASS,  // 节点 5 密码
-    // 6: process.env.NODE6_PASS // 如果其他地方需要可以保留，但当前 API 未检查
+    //6: process.env.NODE6_PASS, // 如果其他地方需要可以保留，但当前 API 未检查
     next1: process.env.NEXT_PASS_1, // next.html 密码 1
     next2: process.env.NEXT_PASS_2, // next.html 密码 2
 };
