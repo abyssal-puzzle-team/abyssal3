@@ -4,7 +4,6 @@ import {
     setCooldown, clearCooldown, runMiddleware, cors
 } from './_utils.js';
 
-
 export default async function handler(req, res) {
     // 应用 CORS
     await runMiddleware(req, res, cors);
@@ -53,17 +52,20 @@ export default async function handler(req, res) {
         return res.status(400).json({ correct: false, message: '请求缺少必要参数 (nodeIndex 或 password)' });
     }
     const index = parseInt(nodeIndex, 10);
-    // 验证节点索引是否在有效范围 (主页面为 1-5)
-    if (isNaN(index) || index < 1 || index > 5) {
+    // 验证节点索引是否在有效范围 (主页面为 1-5，现在加上中心节点 6)
+    // <--- 修改验证逻辑 --->
+    if (isNaN(index) || index < 1 || (index > 6)) { // 允许 1 到 6
          return res.status(400).json({ correct: false, message: '无效的节点索引' });
     }
 
     // --- 密码校验 ---
-    const correctPassword = passwords[index]; // 从共享配置中获取正确密码
+    const correctPassword = passwords[index]; // 现在可以获取 passwords[6]
 
-    // 检查环境变量是否配置了该密码
+    // 检查环境变量是否配置了该密码 (现在会检查 NODE1_PASS 到 NODE5_PASS 和 CENTER_PASS)
     if (correctPassword === undefined) {
-        console.error(`配置错误：环境变量 NODE${index}_PASS 未设置。`);
+        // <--- 更新错误消息以包含中心节点 --->
+        const envVarName = index === 6 ? 'CENTER_PASS' : `NODE${index}_PASS`;
+        console.error(`配置错误：环境变量 ${envVarName} 未设置。`);
         return res.status(500).json({ correct: false, message: '服务器配置错误' });
     }
 

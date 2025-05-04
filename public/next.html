@@ -42,16 +42,44 @@
             #nodes-container { grid-template-columns: repeat(2, 1fr); gap: 15px; max-width: 250px; }
             .node-circle { width: 90px; height: 90px; font-size: 0.8em;}
         }
+
+        /* --- 新增样式：右下角信息框 --- */
+        #corner-info {
+            position: fixed; /* 固定定位，相对于视口 */
+            bottom: 10px;    /* 距离底部边缘 10px */
+            right: 10px;     /* 距离右侧边缘 10px */
+            font-size: 0.75em; /* 较小的字体大小 (可根据需要调整) */
+            color: #ccc;      /* 浅灰色文字，不那么显眼 */
+            background-color: rgba(0, 0, 0, 0.5); /* 半透明黑色背景，提高可读性 */
+            padding: 8px 12px; /* 内边距 */
+            border-radius: 4px; /* 轻微的圆角 */
+            z-index: 50;       /* 确保在大多数内容之上，但在弹窗之下 */
+            max-width: 300px;  /* 限制最大宽度，防止在大屏幕上过宽 */
+            line-height: 1.4;  /* 调整行高，使其更易读 */
+            text-align: left;  /* 文本左对齐 */
+        }
+
+        /* 响应式调整：在非常小的屏幕上，可能需要调整位置或大小 */
+        @media (max-width: 480px) {
+            #corner-info {
+                font-size: 0.7em;
+                max-width: 90%; /* 允许占用更多宽度 */
+                bottom: 5px;
+                right: 5px;
+                padding: 5px 8px;
+            }
+        }
+        /* --- 新增样式结束 --- */
     </style>
 </head>
 <body>
-    <h1>最终认证</h1>
+    <h1>META</h1>
 
     <div class="main-content-wrapper">
         <img id="side-image" src="./img/meta.png" alt="meta示意图">
         <div id="nodes-container">
             <!-- 节点 HTML 保持不变 -->
-            <div class="node" data-node-id="1"><div class="node-circle">节点一<br>起源</div><div class="node-details"><button class="close-details-btn">×</button><h3>节点一</h3><p>...</p></div></div>
+            <div class="node" data-node-id="1"><div class="node-circle">已知歌曲</div><div class="node-details"><button class="close-details-btn">×</button><h3>已知歌曲</h3><p>Dantalion<br>CHAOS<br>Testify<br>TRPNO<br>Redolent Shape<br>Lament Rain<br>Next to you<br>SOUNDWITCH<br>Cyaegha<br>DDD<br>Mirzam<br>Arghena<br>Phantasia<br>Qovat<br>Oblivia<br>Vexaira<br>Manic Jeer<br>TeraVolt<br>IZANA<br>Nhelv<br>Teriqma<br>Magnolia<br>Halcyon<br>Nirv lucE<br>MIRINAE<br></p></div></div>
             <div class="node" data-node-id="2"><div class="node-circle">节点二<br>探索</div><div class="node-details"><button class="close-details-btn">×</button><h3>节点二</h3><p>...</p></div></div>
             <div class="node" data-node-id="3"><div class="node-circle">节点三<br>裂隙</div><div class="node-details"><button class="close-details-btn">×</button><h3>节点三</h3><p>...</p></div></div>
             <div class="node" data-node-id="4"><div class="node-circle">节点四<br>真相</div><div class="node-details"><button class="close-details-btn">×</button><h3>节点四</h3><p>...</p></div></div>
@@ -87,9 +115,6 @@
         let musicPlayed = false;
 
         // --- 冷却状态管理 (保持不变) ---
-        function clearCooldownState(forceClearMessage = false) { /* ... */ }
-        function startFrontendCooldownTimers(remaining) { /* ... */ }
-        // (省略了 clearCooldownState 和 startFrontendCooldownTimers 的完整代码)
         function clearCooldownState(forceClearMessage = false) { if (activeCooldownTimer) { clearInterval(activeCooldownTimer); activeCooldownTimer = null; } if (activeCooldownTimeout) { clearTimeout(activeCooldownTimeout); activeCooldownTimeout = null; } formContainer.classList.remove('cooldown-active'); passwordInput1.disabled = false; submitButton.disabled = false; submitButton.textContent = '验证'; if (forceClearMessage) { errorMsg.textContent = ''; } }
         function startFrontendCooldownTimers(remaining) { passwordInput1.disabled = true; submitButton.disabled = true; formContainer.classList.add('cooldown-active'); submitButton.textContent = '请等待...'; let countdown = remaining; if (activeCooldownTimer) clearInterval(activeCooldownTimer); activeCooldownTimer = setInterval(() => { countdown--; if (formContainer.classList.contains('cooldown-active')) { if (countdown > 0) { errorMsg.textContent = `密码错误！请等待 ${countdown} 秒...`; } else { errorMsg.textContent = `请稍候...`; clearInterval(activeCooldownTimer); activeCooldownTimer = null; } } else { clearInterval(activeCooldownTimer); activeCooldownTimer = null; } }, 1000); if (activeCooldownTimeout) clearTimeout(activeCooldownTimeout); activeCooldownTimeout = setTimeout(() => { activeCooldownTimer = null; if (formContainer.classList.contains('cooldown-active')) { console.log(`前端冷却结束。重新启用控件。`); clearCooldownState(false); errorMsg.textContent = ''; } else { console.log(`服务器冷却时间到，但 UI 状态已改变。`); clearCooldownState(true); } activeCooldownTimeout = null; }, remaining * 1000); }
 
@@ -133,11 +158,7 @@
         }
 
         // --- 节点弹出/关闭逻辑 (保持不变) ---
-        function closeAllDetails() { /* ... */ }
-        nodeCircles.forEach(circle => { /* ... */ });
-        nodesContainer.addEventListener('click', (event) => { /* ... */ });
-        // (省略了节点逻辑的完整代码)
-         function closeAllDetails() { nodeDetailsPanels.forEach(panel => panel.classList.remove('visible')); }
+        function closeAllDetails() { nodeDetailsPanels.forEach(panel => panel.classList.remove('visible')); }
         nodeCircles.forEach(circle => { circle.addEventListener('click', (event) => { event.stopPropagation(); const parentNode = circle.closest('.node'); const detailsPanel = parentNode.querySelector('.node-details'); if (detailsPanel) { const isVisible = detailsPanel.classList.contains('visible'); closeAllDetails(); if (!isVisible) { detailsPanel.classList.add('visible'); } } }); });
         nodesContainer.addEventListener('click', (event) => { if (event.target.classList.contains('close-details-btn')) { event.stopPropagation(); const detailsPanel = event.target.closest('.node-details'); if (detailsPanel) { detailsPanel.classList.remove('visible'); } } });
 
@@ -159,9 +180,12 @@
             // 2. 关闭节点面板逻辑 (保持不变)
             const clickedInsideDetails = event.target.closest('.node-details');
             const clickedOnCircle = event.target.closest('.node-circle');
-            if (!clickedInsideDetails && !clickedOnCircle) {
+            // --- 修改：确保点击右下角信息框时不会关闭节点详情 ---
+            const clickedOnCornerInfo = event.target.closest('#corner-info');
+            if (!clickedInsideDetails && !clickedOnCircle && !clickedOnCornerInfo) {
                 closeAllDetails();
             }
+            // --- 修改结束 ---
         });
 
 
@@ -177,5 +201,16 @@
         clearCooldownState(true);
 
     </script>
+
+    <!-- 新增：右下角提示信息 -->
+    <div id="corner-info">
+        • 空格不会在表格中呈现 (A Bc = ABc)<br>
+        • 字母不区分大小写, 不会出现两首歌首尾在同一条直线相接的情况, 但是可能穿插拐弯<br>
+        • 有若干个干扰项隐藏在你们的已知可填写曲目中, 但是需要通过解谜解出来的四首曲目一定是必填的, 除了干扰项以外没有多余的曲目<br>
+        • ∅ -> 该格可以同时象征 M~S (含) 中任意的两个字母<br>
+        • Rainbow Answer.
+    </div>
+    <!-- 新增结束 -->
+
 </body>
 </html>

@@ -10,9 +10,9 @@ const passwords = {
     3: process.env.NODE3_PASS,  // 节点 3 密码
     4: process.env.NODE4_PASS,  // 节点 4 密码
     5: process.env.NODE5_PASS,  // 节点 5 密码
-    //6: process.env.NODE6_PASS, // 如果其他地方需要可以保留，但当前 API 未检查
-    next1: process.env.NEXT_PASS_1, // next.html 密码 1
-    next2: process.env.NEXT_PASS_2, // next.html 密码 2
+    6: process.env.CENTER_PASS, // <-- 新增：中心节点密码
+    next1: process.env.NEXT_PASS_1, // next.html 密码 1 (保留，以防他用)
+    next2: process.env.NEXT_PASS_2, // next.html 密码 2 (保留，以防他用)
 };
 
 // 冷却时间（秒），从环境变量读取，默认为 5 秒
@@ -36,22 +36,22 @@ function getRequestIp(req) {
 
 // CORS 中间件初始化
 const cors = Cors({
-  methods: ['GET', 'POST', 'HEAD', 'OPTIONS'], // 根据需要调整允许的方法
-  origin: '*', // 允许所有来源 - 注意：生产环境中应严格限制来源！
-  // 例如，在生产环境中限制来源:
-  // origin: process.env.ALLOWED_ORIGIN || 'https://your-frontend-domain.com',
+    methods: ['GET', 'POST', 'HEAD', 'OPTIONS'], // 根据需要调整允许的方法
+    origin: '*', // 允许所有来源 - 注意：生产环境中应严格限制来源！
+    // 例如，在生产环境中限制来源:
+    // origin: process.env.ALLOWED_ORIGIN || 'https://your-frontend-domain.com',
 });
 
 // 运行中间件的辅助函数 (用于在 Vercel 函数中应用 CORS)
 function runMiddleware(req, res, fn) {
-  return new Promise((resolve, reject) => {
-    fn(req, res, (result) => {
-      if (result instanceof Error) {
-        return reject(result);
-      }
-      return resolve(result);
+    return new Promise((resolve, reject) => {
+        fn(req, res, (result) => {
+            if (result instanceof Error) {
+                return reject(result);
+            }
+            return resolve(result);
+        });
     });
-  });
 }
 
 // --- 冷却逻辑 (使用 Vercel KV) ---
@@ -101,10 +101,9 @@ async function clearCooldown(ip) {
     console.log(`[${ip}] 从 KV 中清除了冷却记录。`);
 }
 
-
 // --- 导出共享内容 ---
 export {
-    passwords,           // 密码对象
+    passwords,           // 密码对象 (已更新)
     COOLDOWN_SECONDS,    // 冷却时间
     getRequestIp,        // 获取 IP 的函数
     checkCooldown,       // 检查冷却状态的函数
@@ -112,5 +111,5 @@ export {
     clearCooldown,       // 清除冷却的函数
     runMiddleware,       // 运行中间件的辅助函数
     cors,                // CORS 中间件实例
-    kv                   // 导出 kv 实例，如果函数中需要直接操作 (通常通过封装函数更好)
+    kv                   // 导出 kv 实例
 };
