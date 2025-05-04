@@ -451,7 +451,7 @@
             clearCooldownState(false); // 清理计时器但不清消息
 
             try {
-                const response = await fetch('http://111.170.11.158:30047/proxy/3000/api/check-password', { // 使用指定 API
+                const response = await fetch('https://abyssal3.asterveil.top/api/check-password', { // 使用指定 API
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ nodeIndex: indexToCheck, password: input }),
@@ -603,7 +603,7 @@
                      tooltipContent.textContent = nodeDescriptions[index]; // 显示描述
 
                      try {
-                         const response = await fetch('http://111.170.11.158:30047/proxy/3000/api/check-cooldown'); // 使用指定 API (假设是 GET)
+                         const response = await fetch('https://abyssal3.asterveil.top/api/check-cooldown'); // 使用指定 API (假设是 GET)
                          if (!response.ok) throw new Error(`冷却状态检查失败: ${response.status}`);
 
                          const cooldownStatus = await response.json();
