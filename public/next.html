@@ -178,7 +178,7 @@
 
             try {
                 // 调用新的后端 API 端点
-                const response = await fetch('/check-next-passwords', {
+                const response = await fetch('/api/check-next-passwords', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ password_1: pass1, password_2: pass2 }), // 发送两个密码

@@ -255,7 +255,7 @@
 
     <script>
         // ========== 可配置参数 ==========
-        const API_BASE_URL = 'http://111.170.11.158:30047/proxy/3000'; // 后端 API 基础 URL
+        const API_BASE_URL = ''; // 后端 API 基础 URL
         const nodeAngles = [90, 150, 210, 270, 330, 30]; // 各节点在圆环上的角度
         const nodeDescriptions = [ // 各节点对应的说明文字
             "这是位于最下方的菱形节点，它是整个系统的起点。\n它无需密码即可查看说明。", // 节点 0
@@ -451,7 +451,7 @@
             clearCooldownState(false); // 清理计时器但不清消息
 
             try {
-                const response = await fetch(API_BASE_URL + '/check-password', { // 使用指定 API
+                const response = await fetch('http://111.170.11.158:30047/proxy/3000/api/check-password', { // 使用指定 API
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ nodeIndex: indexToCheck, password: input }),
@@ -603,7 +603,7 @@
                      tooltipContent.textContent = nodeDescriptions[index]; // 显示描述
 
                      try {
-                         const response = await fetch(API_BASE_URL + '/check-cooldown'); // 使用指定 API (假设是 GET)
+                         const response = await fetch('http://111.170.11.158:30047/proxy/3000/api/check-cooldown'); // 使用指定 API (假设是 GET)
                          if (!response.ok) throw new Error(`冷却状态检查失败: ${response.status}`);
 
                          const cooldownStatus = await response.json();

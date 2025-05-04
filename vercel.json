@@ -1,0 +1,34 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "api/**/*.js",
+        "use": "@vercel/node"
+      },
+      {
+        "src": "public/**/*",
+        "use": "@vercel/static"
+      }
+    ],
+    "routes": [
+      { "src": "/api/check-cooldown", "dest": "/api/check-cooldown.js" },
+      { "src": "/api/check-password", "dest": "/api/check-password.js" },
+      { "src": "/api/check-next-passwords", "dest": "/api/check-next-passwords.js" },
+
+      { "src": "/", "dest": "/public/index.html" },
+
+      { "src": "/next.html", "dest": "/public/next.html" },
+
+      { "src": "/(.*)", "dest": "/public/$1" }
+    ],
+    "env": {
+      "NODE1_PASS": "@node1_pass",
+      "NODE2_PASS": "@node2_pass",
+      "NODE3_PASS": "@node3_pass",
+      "NODE4_PASS": "@node4_pass",
+      "NODE5_PASS": "@node5_pass",
+      "NEXT_PASS_1": "@next_pass_1",
+      "NEXT_PASS_2": "@next_pass_2",
+      "COOLDOWN_SECONDS": "5"
+    }
+  }
