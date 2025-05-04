@@ -11,24 +11,96 @@
             text-align: center; /* 水平居中文本和行内/行内块元素 */
             background-color: black; /* 背景色设为黑色 */
             color: white; /* 文字颜色设为白色 */
-            margin: 0; /* 可选：移除body默认的外边距 */
-            padding: 20px; /* 可选：给内容加一些内边距，避免贴边 */
+            margin: 0; /* 移除body默认的外边距 */
+            padding: 20px; /* 给内容加一些内边距 */
+            font-family: sans-serif; /* 设置一个通用的字体，提高可读性 */
+            line-height: 1.6; /* 增加基础行高 */
         }
 
         /* 设置图片样式 */
         img {
             max-width: 50%; /* 图片的最大宽度设置为其容器（body）的50% */
-            height: auto; /* 高度自动，以保持图片的原始宽高比，防止变形 */
-            /* text-align: center; 在 body 上已经应用，对 img (inline-block) 有效 */
-            /* 如果 img 设置了 display: block，则需要 margin: 0 auto; 来居中 */
+            height: auto; /* 高度自动，保持宽高比 */
+            margin-top: 20px; /* 在图片上方添加一些空间 */
+            margin-bottom: 20px; /* 在图片下方添加一些空间 */
         }
+
+        /* 主要标题样式 */
+        h2 {
+            margin-bottom: 10px;
+        }
+
+        /* 感谢名单部分的容器 */
+        .thanks-section {
+            margin-top: 40px; /* 与上方内容增加更多间隔 */
+            /* 可以根据需要添加 max-width 和 margin: 0 auto; 让感谢名单内容块不是撑满全屏，
+               但在 text-align: center; 的body下，对于文字和<p>，居中效果已经很好 */
+        }
+
+        /* 感谢名单总标题样式 */
+        .thanks-section h3 {
+            margin-bottom: 20px; /* 在总标题下方添加空间 */
+            font-size: 1.5em; /* 稍微放大标题 */
+        }
+
+        /* 感谢名单副标题样式 (如 Meta, 其它) */
+        .thanks-section h4 {
+            margin-top: 20px; /* 在副标题上方添加空间 */
+            margin-bottom: 10px; /* 在副标题下方添加空间 */
+            font-size: 1.2em; /* 副标题大小 */
+            text-decoration: underline; /* 给副标题加下划线增强区分 */
+        }
+
+        /* 感谢名单每个条目的段落样式 */
+        .thanks-section p {
+            margin-bottom: 8px; /* 每个条目之间的小间隔 */
+            /* text-align: center; 会自动继承 body 的居中 */
+        }
+
+        /* 移除最后一个条目的底部外边距，使其与下方内容（如果有）间隔更自然 */
+        .thanks-section p:last-child {
+            margin-bottom: 0;
+        }
+
 
     </style>
 </head>
 <body>
     <h2>恭喜通关</h2>
     <h2>Thanks for playing</h2>
+
     <img src="./img/final.jpeg" alt="二人头像">
+
     <p>Alex x 岚雪夜花<br>暑假联合大型解谜<br>Coming Soon...</p>
+
+    <!-- 添加感谢名单部分 -->
+    <div class="thanks-section">
+        <h3>Abyssal Puzzle 3分工&感谢名单</h3>
+
+        <!-- 谜题分工 -->
+        <h4>谜题分工</h4>
+        <p>初始网页谜题: Alex</p>
+        <p>谜题1: 芙莉莲 fixed by Alex</p>
+        <p>谜题2: 岚雪夜花 vs Alex</p>
+        <p>谜题3: Alex with Thursday&Bmty</p>
+        <p>谜题4: Thursday fixed by Alex</p>
+        <p>谜题5: Alex vs 探索者殇璃</p>
+        <p>谜题6(meta进入解谜): Alexander</p>
+
+        <!-- Meta -->
+        <h4>Meta</h4>
+        <p>Alexander S(探索者殇璃) against 岚雪夜花(你猜~喵~)</p>
+
+        <!-- 其它 -->
+        <h4>其它</h4>
+        <p>Arcana Eden视频: Thursday</p>
+        <p>预热视频: 芙莉莲</p>
+        <p>网页设计: 芙莉莲</p>
+        <p>特邀嘉宾: 岚雪夜花</p>
+        <p>吉祥物: 咖啡&strpuio&Calamity</p>
+        <p>设计: 芙兰群加密解密小组</p>
+    </div>
+    <!-- 感谢名单部分结束 -->
+
 </body>
 </html>
