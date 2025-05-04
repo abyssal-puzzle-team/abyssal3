@@ -50,24 +50,19 @@ export default async function handler(req, res) {
          console.warn("无法确定用于 next.html 密码检查的 IP。跳过冷却逻辑。");
     }
 
-    // --- 参数验证 ---
-    if (password_1 === undefined || password_2 === undefined) {
-        return res.status(400).json({ correct: false, message: '请求缺少必要参数 (password_1 或 password_2)' });
-    }
-
     // --- 密码校验 ---
     // 从共享配置获取 next.html 的正确密码
     const correctPassword1 = passwords.next1;
     const correctPassword2 = passwords.next2;
 
     // 检查密码是否在环境变量中定义
-    if (correctPassword1 === undefined || correctPassword2 === undefined) {
+    if (correctPassword1 === undefined) {
         console.error("配置错误：环境变量 NEXT_PASS_1 或 NEXT_PASS_2 未设置。");
         return res.status(500).json({ correct: false, message: '服务器配置错误' });
     }
 
     // 比较两个密码
-    if (password_1 === correctPassword1 && password_2 === correctPassword2) {
+    if (password_1 === correctPassword1) {
         // --- 密码都正确 ---
         console.log(`[${ip || '未知 IP'}] next.html 密码正确！`);
         // 如果有 IP，尝试清除冷却记录
