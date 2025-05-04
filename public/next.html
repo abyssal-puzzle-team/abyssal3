@@ -5,13 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>META - the final</title>
     <style>
-        /* CSS 样式部分保持不变 */
-        body { margin: 0; padding: 0; background: #121212; color: #fff; font-family: Arial, sans-serif; overflow-x: hidden; overflow-y: auto; display: flex; align-items: flex-start; min-height: 100vh; flex-direction: column; background-image: url('./img/nextground.jpeg'); background-size: cover; background-repeat: no-repeat; background-attachment: fixed; background-position: center; padding-top: 50px; padding-bottom: 50px; box-sizing: border-box; }
-        h1 { color: white; text-align: center; margin-bottom: 30px; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); width: 100%; }
+        /* CSS 样式部分 */
+        body { margin: 0; padding: 0; background: #121212; color: #fff; font-family: Arial, sans-serif; overflow-x: hidden; overflow-y: auto; display: flex; align-items: center; /* 改为 center 使内容垂直居中 */ min-height: 100vh; flex-direction: column; background-image: url('./img/nextground.jpeg'); background-size: cover; background-repeat: no-repeat; background-attachment: fixed; background-position: center; padding-top: 50px; padding-bottom: 50px; box-sizing: border-box; justify-content: center; /* 新增，配合 align-items: center */ }
+        h1 { color: white; text-align: center; margin-bottom: 30px; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); width: 100%; order: -1; /* 让标题在 flex 布局中靠前 */}
+
         .main-content-wrapper { display: flex; justify-content: center; align-items: center; width: 90%; max-width: 900px; margin: 0 auto 40px auto; gap: 40px; }
-        #side-image { flex: 0 0 40%; max-width: 320px; height: auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); object-fit: cover; }
-        #nodes-container { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, auto); gap: 30px; position: relative; max-width: 400px; margin: 0 auto; }
+
+        /* --- 新增：节点布局容器 --- */
+        .nodes-layout {
+            display: flex;
+            flex-direction: column; /* 垂直排列 */
+            align-items: center;   /* 水平居中 */
+            gap: 30px;             /* 顶部节点和网格之间的间距 */
+            flex: 1;               /* 占据 flex 容器中的可用空间 */
+            min-width: 0;
+        }
+        /* --- 新增结束 --- */
+
+        #side-image { flex: 0 0 40%; max-width: 320px; height: auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); object-fit: cover; align-self: center; /* 确保图片在 flex item 内部也居中 */ }
+
+        #nodes-container {
+            /* display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, auto); gap: 30px; */ /* 保留 grid 布局 */
+             display: grid;
+             grid-template-columns: repeat(2, 1fr);
+             grid-template-rows: repeat(2, auto);
+             gap: 30px;
+             position: relative;
+             max-width: 400px;
+             /* margin: 0 auto; */ /* 由父级 .nodes-layout 控制居中 */
+             width: fit-content; /* 让容器宽度适应内容 */
+        }
+
         .node { display: flex; justify-content: center; align-items: center; position: relative; }
+
+        /* 可以为顶部节点添加特定样式，如果需要的话 */
+        /* .top-node { margin-bottom: 30px; } */ /* 间距现在由 .nodes-layout 的 gap 控制 */
+
         .node-circle { width: 120px; height: 120px; background-color: rgba(50, 50, 50, 0.85); border: 2px solid #666; border-radius: 50%; display: flex; justify-content: center; align-items: center; text-align: center; color: #fff; font-weight: bold; cursor: pointer; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5); transition: transform 0.3s ease, box-shadow 0.3s ease; user-select: none; position: relative; z-index: 1; }
         .node-circle:hover { transform: scale(1.05); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.6); border-color: #888; }
         .node-details { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.8); width: 90%; max-width: 500px; max-height: 75vh; overflow-y: auto; background-color: rgba(25, 25, 25, 0.97); padding: 25px; box-sizing: border-box; border-radius: 10px; border: 1px solid #555; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.35s ease, transform 0.35s ease, visibility 0s linear 0.35s; z-index: 100; }
@@ -20,7 +49,7 @@
         .node-details p { line-height: 1.6; margin-bottom: 10px; }
         .close-details-btn { position: absolute; top: 10px; right: 15px; background: transparent; border: none; color: #aaa; font-size: 1.8em; font-weight: bold; cursor: pointer; padding: 0; line-height: 1; transition: color 0.2s ease; }
         .close-details-btn:hover { color: #fff; }
-        .form-container { background-color: rgba(30, 30, 30, 0.85); padding: 30px 40px; border-radius: 10px; border: 1px solid #555; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); width: 90%; max-width: 450px; box-sizing: border-box; margin: 20px auto 0 auto; }
+        .form-container { background-color: rgba(30, 30, 30, 0.85); padding: 30px 40px; border-radius: 10px; border: 1px solid #555; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); width: 90%; max-width: 450px; box-sizing: border-box; margin: 40px auto 0 auto; /* 调整与上方内容的间距 */ order: 1; /* 让表单在 flex 布局中靠后 */}
         .form-container input[type=text] { width: 100%; padding: 10px; margin-bottom: 15px; box-sizing: border-box; background: #333; color: #fff; border: 1px solid #666; display: block; border-radius: 4px; font-size: 1em; }
         .form-container button { width: 100%; padding: 12px; background: #4caf50; color: #fff; border: none; cursor: pointer; display: block; border-radius: 4px; font-size: 1.1em; transition: background 0.3s ease; margin-top: 10px; }
         .form-container button:not(:disabled):hover { background: #45a049; }
@@ -30,12 +59,14 @@
         .form-container.cooldown-active button:hover { background-color: #555 !important; }
 
         @media (max-width: 768px) {
-            body { padding-top: 30px; padding-bottom: 30px; }
-            .main-content-wrapper { flex-direction: column; align-items: center; width: 95%; gap: 30px; }
+            body { padding-top: 30px; padding-bottom: 30px; align-items: stretch; /* 在小屏幕上可能需要拉伸 */ justify-content: flex-start; /* 恢复默认，防止内容被推到底部 */ }
+            h1 { margin-bottom: 20px; }
+            .main-content-wrapper { flex-direction: column; align-items: center; width: 95%; gap: 30px; margin-bottom: 30px; }
             #side-image { flex-basis: auto; width: 60%; max-width: 200px; }
+            /* nodes-layout 会自然堆叠 */
             #nodes-container { grid-template-columns: repeat(2, 1fr); gap: 20px; max-width: 300px; }
             .node-circle { width: 100px; height: 100px; font-size: 0.9em; }
-            .form-container { width: 95%; margin-top: 30px; }
+            .form-container { width: 95%; margin: 30px auto 0 auto; }
             .node-details { width: 90%; max-width: 90%; max-height: 80vh; }
         }
         @media (max-width: 480px) {
@@ -43,32 +74,9 @@
             .node-circle { width: 90px; height: 90px; font-size: 0.8em;}
         }
 
-        /* --- 新增样式：右下角信息框 --- */
-        #corner-info {
-            position: fixed; /* 固定定位，相对于视口 */
-            bottom: 10px;    /* 距离底部边缘 10px */
-            right: 10px;     /* 距离右侧边缘 10px */
-            font-size: 0.75em; /* 较小的字体大小 (可根据需要调整) */
-            color: #ccc;      /* 浅灰色文字，不那么显眼 */
-            background-color: rgba(0, 0, 0, 0.5); /* 半透明黑色背景，提高可读性 */
-            padding: 8px 12px; /* 内边距 */
-            border-radius: 4px; /* 轻微的圆角 */
-            z-index: 50;       /* 确保在大多数内容之上，但在弹窗之下 */
-            max-width: 300px;  /* 限制最大宽度，防止在大屏幕上过宽 */
-            line-height: 1.4;  /* 调整行高，使其更易读 */
-            text-align: left;  /* 文本左对齐 */
-        }
-
-        /* 响应式调整：在非常小的屏幕上，可能需要调整位置或大小 */
-        @media (max-width: 480px) {
-            #corner-info {
-                font-size: 0.7em;
-                max-width: 90%; /* 允许占用更多宽度 */
-                bottom: 5px;
-                right: 5px;
-                padding: 5px 8px;
-            }
-        }
+        /* --- 右下角信息框样式 (保持不变) --- */
+        #corner-info { position: fixed; bottom: 10px; right: 10px; font-size: 0.75em; color: #ccc; background-color: rgba(0, 0, 0, 0.5); padding: 8px 12px; border-radius: 4px; z-index: 50; max-width: 300px; line-height: 1.4; text-align: left; }
+        @media (max-width: 480px) { #corner-info { font-size: 0.7em; max-width: 90%; bottom: 5px; right: 5px; padding: 5px 8px; } }
         /* --- 新增样式结束 --- */
     </style>
 </head>
@@ -76,25 +84,48 @@
     <h1>META</h1>
 
     <div class="main-content-wrapper">
-        <img id="side-image" src="./img/meta.png" alt="meta示意图">
-        <div id="nodes-container">
-            <!-- 节点 HTML 保持不变 -->
-            <div class="node" data-node-id="1"><div class="node-circle">已知歌曲</div><div class="node-details"><button class="close-details-btn">×</button><h3>已知歌曲</h3><p>Dantalion<br>CHAOS<br>Testify<br>TRPNO<br>Redolent Shape<br>Lament Rain<br>Next to you<br>SOUNDWITCH<br>Cyaegha<br>DDD<br>Mirzam<br>Arghena<br>Phantasia<br>Qovat<br>Oblivia<br>Vexaira<br>Manic Jeer<br>TeraVolt<br>IZANA<br>Nhelv<br>Teriqma<br>Magnolia<br>Halcyon<br>Nirv lucE<br>MIRINAE<br></p></div></div>
-            <div class="node" data-node-id="2"><div class="node-circle">节点二<br>探索</div><div class="node-details"><button class="close-details-btn">×</button><h3>节点二</h3><p>...</p></div></div>
-            <div class="node" data-node-id="3"><div class="node-circle">节点三<br>裂隙</div><div class="node-details"><button class="close-details-btn">×</button><h3>节点三</h3><p>...</p></div></div>
-            <div class="node" data-node-id="4"><div class="node-circle">节点四<br>真相</div><div class="node-details"><button class="close-details-btn">×</button><h3>节点四</h3><p>...</p></div></div>
-        </div>
-    </div>
+        <img id="side-image" src="./img/meta.jpeg" alt="meta示意图">
+
+        <!-- 新增的节点布局容器 -->
+        <div class="nodes-layout">
+
+            <!-- 新增的顶部节点 (内容来自原节点1) -->
+            <div class="node top-node" data-node-id="top"> <!-- 使用 'top' 或 '0' 作为 ID -->
+                <div class="node-circle">已知歌曲</div>
+                <div class="node-details">
+                    <button class="close-details-btn">×</button>
+                    <h3>已知歌曲</h3>
+                    <p>Dantalion<br>CHAOS<br>Testify<br>TRPNO<br>Redolent Shape<br>Lament Rain<br>Next to you<br>SOUNDWITCH<br>Cyaegha<br>DDD<br>Mirzam<br>Arghena<br>Phantasia<br>Qovat<br>Oblivia<br>Vexaira<br>Manic Jeer<br>TeraVolt<br>IZANA<br>Nhelv<br>Teriqma<br>Magnolia<br>Halcyon<br>Nirv lucE<br>MIRINAE<br></p>
+                </div>
+            </div>
+
+            <!-- 原来的 2x2 节点容器 -->
+            <div id="nodes-container">
+                <!-- 原节点1，现在内容已更新 -->
+                <div class="node" data-node-id="1">
+                    <div class="node-circle">谜题A</div> <!-- 更新文本 -->
+                    <div class="node-details">
+                        <button class="close-details-btn">×</button>
+                        <h3>谜题A</h3> <!-- 更新标题 -->
+                        <p>三条碰 弃五筒 <br> 二条 杠二万 弃五条 <br> 五万杠 弃一万 <br> 碰三万 <br> 七条 <br> 五条六条吃 弃四万 <br> 一万 <br> 杠四条 弃两条 <br> 五筒 碰五万.</p> <!-- 更新内容 -->
+                    </div>
+                </div>
+                <!-- 其他节点保持不变 -->
+                <div class="node" data-node-id="2"><div class="node-circle">谜题B</div><div class="node-details"><button class="close-details-btn">×</button><h3>谜题B</h3><p>水天一色,空中的半径却不再围绕着圆旋转 <br> 云彩勾勒出美妙的弧线,它们移动,它们变幻. <br> rmqrbr <br><img src="./img/help.png" alt="斐波那契弧线"></p></div></div>
+                <div class="node" data-node-id="3"><div class="node-circle">谜题C</div><div class="node-details"><button class="close-details-btn">×</button><h3>谜题C</h3><p>找到一切的开始. <br> **st eert*on <br> een n un <br> UD <br> **rtfct <br> te <br> 已开:s t e r o n u d e f c</p></div></div>
+                <div class="node" data-node-id="4"><div class="node-circle">谜题D</div><div class="node-details"><button class="close-details-btn">×</button><h3>谜题D</h3><p>也许世界上曾存在着一片乐土,后来的破面告诉原来的人们:这个世界从来都不平等,也不允许光芒存在. <br> 2LightvfrGShedwHCdrSYYvSheSwsyZ7HKwoN26Mf7YbZLexbiHXWkJpwdnqAnVTQjmuuLAyD2Ukinir2MB3Kie3ijy78AdLJjWmKNK3bnNVYL3kJJ4qrxYKdVG11m6DEEtL3wE6XbuxzuedFgGx9oUS3XSQjQmnqQBLPWzXAaMBfGFNjfkcawZRyncbBK7yEwoRGNFjctUnaDS3W5uTtoWWEdBhj6zki53hY7bnnCBdmUG1i5bGK4DQpppvgLtgZ8ddN3NDuvFSScgpecUYkyC9== <br> 找到那片乐土.</p></div></div>
+            </div>
+
+        </div> <!-- 结束 nodes-layout -->
+    </div> <!-- 结束 main-content-wrapper -->
 
     <div class="form-container" id="passwordFormContainer">
-        <input type="text" id="passwordInput1" placeholder="请输入密钥 (next-pass-1)">
+        <input type="text" id="passwordInput1" placeholder="请输入meta谜底">
         <button id="submitButton">验证</button>
         <div class="error" id="errorMsg"></div>
     </div>
 
-    <!-- !!! 添加 Audio 元素 !!! -->
     <audio id="background-music" src="./mp3/next.mp3" loop preload="auto"></audio>
-    <!-- loop 属性使音乐循环播放, preload="auto" 建议浏览器尽快加载 -->
 
     <script>
         // --- DOM 元素获取 ---
@@ -102,16 +133,18 @@
         const passwordInput1 = document.getElementById('passwordInput1');
         const submitButton = document.getElementById('submitButton');
         const errorMsg = document.getElementById('errorMsg');
-        const nodeCircles = document.querySelectorAll('.node-circle');
-        const nodeDetailsPanels = document.querySelectorAll('.node-details');
+        // 注意：现在获取所有 .node 下的 .node-circle
+        const nodeCircles = document.querySelectorAll('.node .node-circle');
+        // 注意：现在获取所有 .node 下的 .node-details
+        const nodeDetailsPanels = document.querySelectorAll('.node .node-details');
+        // 获取新的 .nodes-layout 和旧的 #nodes-container (如果需要单独操作)
+        const nodesLayout = document.querySelector('.nodes-layout');
         const nodesContainer = document.getElementById('nodes-container');
-        // !!! 获取 Audio 元素 !!!
         const backgroundMusic = document.getElementById('background-music');
 
         // --- 状态变量 ---
         let activeCooldownTimer = null;
         let activeCooldownTimeout = null;
-        // !!! 添加音乐播放状态标志 !!!
         let musicPlayed = false;
 
         // --- 冷却状态管理 (保持不变) ---
@@ -139,7 +172,7 @@
                 if (response.ok && data.correct) {
                     console.log("下一阶段密码正确！正在跳转...");
                     clearCooldownState(true);
-                    window.location.href = './img/f.png'; // 跳转到图片
+                    window.location.href = './final.html'; // 跳转到图片
                 } else {
                     passwordInput1.value = '';
                     if (data.cooldown && data.remaining > 0) {
@@ -157,35 +190,59 @@
             }
         }
 
-        // --- 节点弹出/关闭逻辑 (保持不变) ---
+        // --- 节点弹出/关闭逻辑 (保持不变, 选择器已更新) ---
         function closeAllDetails() { nodeDetailsPanels.forEach(panel => panel.classList.remove('visible')); }
-        nodeCircles.forEach(circle => { circle.addEventListener('click', (event) => { event.stopPropagation(); const parentNode = circle.closest('.node'); const detailsPanel = parentNode.querySelector('.node-details'); if (detailsPanel) { const isVisible = detailsPanel.classList.contains('visible'); closeAllDetails(); if (!isVisible) { detailsPanel.classList.add('visible'); } } }); });
-        nodesContainer.addEventListener('click', (event) => { if (event.target.classList.contains('close-details-btn')) { event.stopPropagation(); const detailsPanel = event.target.closest('.node-details'); if (detailsPanel) { detailsPanel.classList.remove('visible'); } } });
+        // 事件委托到 .nodes-layout 或 body 上更佳，但为保持原逻辑，继续绑定到 circle
+        nodeCircles.forEach(circle => {
+            circle.addEventListener('click', (event) => {
+                event.stopPropagation();
+                // 找到包含 circle 和 details 的 .node 父元素
+                const parentNode = circle.closest('.node');
+                if (parentNode) {
+                    const detailsPanel = parentNode.querySelector('.node-details');
+                    if (detailsPanel) {
+                        const isVisible = detailsPanel.classList.contains('visible');
+                        closeAllDetails(); // 先关闭所有
+                        if (!isVisible) {
+                            detailsPanel.classList.add('visible'); // 再打开当前的
+                        }
+                    }
+                }
+            });
+        });
 
-
-        // --- 全局点击事件监听器 (包括音乐播放和关闭节点) ---
+        // 事件委托到 document 上处理关闭按钮
         document.addEventListener('click', (event) => {
-            // 1. 音乐播放逻辑 (只在第一次点击时触发)
+            if (event.target.classList.contains('close-details-btn')) {
+                event.stopPropagation();
+                const detailsPanel = event.target.closest('.node-details');
+                if (detailsPanel) {
+                    detailsPanel.classList.remove('visible');
+                }
+            }
+        });
+
+
+        // --- 全局点击事件监听器 (包括音乐播放和关闭节点) (保持不变) ---
+        document.addEventListener('click', (event) => {
+            // 1. 音乐播放逻辑
             if (!musicPlayed && backgroundMusic) {
                 backgroundMusic.play().then(() => {
                     console.log("背景音乐已开始播放。");
-                    musicPlayed = true; // 标记为已播放
+                    musicPlayed = true;
                 }).catch(error => {
-                    // 播放可能会因为浏览器策略失败，尤其是在没有用户明确交互的情况下
                     console.error("背景音乐播放失败:", error);
-                    // 这里可以不设置 musicPlayed = true，允许下次点击再尝试
                 });
             }
 
-            // 2. 关闭节点面板逻辑 (保持不变)
+            // 2. 关闭节点面板逻辑
             const clickedInsideDetails = event.target.closest('.node-details');
             const clickedOnCircle = event.target.closest('.node-circle');
-            // --- 修改：确保点击右下角信息框时不会关闭节点详情 ---
             const clickedOnCornerInfo = event.target.closest('#corner-info');
-            if (!clickedInsideDetails && !clickedOnCircle && !clickedOnCornerInfo) {
+            // 如果点击事件的目标不是节点圆圈、不是节点详情内部、也不是右下角信息框，则关闭所有详情
+            if (!clickedInsideDetails && !clickedOnCircle && !clickedOnCornerInfo && !event.target.classList.contains('close-details-btn') /* 防止关闭按钮触发两次关闭 */) {
                 closeAllDetails();
             }
-            // --- 修改结束 ---
         });
 
 
@@ -202,7 +259,7 @@
 
     </script>
 
-    <!-- 新增：右下角提示信息 -->
+    <!-- 右下角提示信息 (保持不变) -->
     <div id="corner-info">
         • 空格不会在表格中呈现 (A Bc = ABc)<br>
         • 字母不区分大小写, 不会出现两首歌首尾在同一条直线相接的情况, 但是可能穿插拐弯<br>
@@ -210,7 +267,6 @@
         • ∅ -> 该格可以同时象征 M~S (含) 中任意的两个字母<br>
         • Rainbow Answer.
     </div>
-    <!-- 新增结束 -->
 
 </body>
 </html>
